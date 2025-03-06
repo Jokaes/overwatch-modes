@@ -1,0 +1,286 @@
+settings
+{
+	main
+	{
+		Description: "Hot Fast Mirror! v1.9.0 All heroes. 30s to the point to unlock. Damage over time after the point is active. No turrets. No barries. No health packs. Even if it is designed for 1 vs 1 you can play it 2 vs 2, 3 vs 3, etc… Join my discord.gg/ZdukXgB -Created by Jokaes#2263 Code updated & more codes: jokaes.github.io"
+		Mode Name: "Hot Fast Mirror!"
+	}
+
+	lobby
+	{
+		Map Rotation: After A Game
+		Max Spectators: 12
+		Return To Lobby: Never
+		Swap Teams After Match: No
+		Team Balancing: After A Game
+	}
+
+	modes
+	{
+		Elimination
+		{
+			Draw After Match Time Elapsed With No Tiebreaker: 60
+			Hero Selection: Random Mirrored
+			Limited Choice Pool: Team Size
+			Restrict Previously Used Heroes: After Round Played
+			Score To Win: 5
+			Tiebreaker After Match Time Elapsed: 30
+
+			disabled maps
+			{
+				Black Forest
+				Ecopoint: Antarctica
+				Lijiang Control Center
+				Lijiang Garden
+				Lijiang Night Market
+				Workshop Expanse Night
+				Workshop Green Screen
+				Workshop Island Night
+			}
+		}
+
+		General
+		{
+			Allow Hero Switching: Disabled
+			Hero Limit: Off
+			Spawn Health Packs: Disabled
+		}
+	}
+
+	heroes
+	{
+		General
+		{
+			Ashe
+			{
+				Ultimate Ability B.O.B.: Disabled
+			}
+
+			Bastion
+			{
+				Reconfigure: Disabled
+			}
+
+			Brigitte
+			{
+				Barrier Shield: Disabled
+			}
+
+			Echo
+			{
+				Ultimate Ability Duplicate: Disabled
+			}
+
+			Orisa
+			{
+				Javelin Spin: Disabled
+			}
+
+			Reinhardt
+			{
+				Barrier Field: Disabled
+			}
+
+			Sigma
+			{
+				Experimental Barrier: Disabled
+			}
+
+			Symmetra
+			{
+				Sentry Turret: Disabled
+			}
+
+			Torbjörn
+			{
+				Deploy Turret: Disabled
+			}
+
+			Winston
+			{
+				Barrier Projector: Disabled
+			}
+
+			Zarya
+			{
+				Particle Barrier: Disabled
+				Projected Barrier: Disabled
+			}
+
+			disabled heroes
+			{
+				Hazard
+				Illari
+				Junker Queen
+				Juno
+				Kiriko
+				Lifeweaver
+				Mauga
+				Ramattra
+				Sojourn
+				Venture
+			}
+		}
+	}
+}
+
+variables
+{
+	global:
+		0: damageHUD
+		3: damageWhenPointUnlock
+}
+
+disabled rule("Created by Jokaes#2263")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+}
+
+rule("Set damage at the start to 1")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+
+	conditions
+	{
+		Is Game In Progress == True;
+	}
+
+	actions
+	{
+		Global.damageWhenPointUnlock = 1;
+	}
+}
+
+rule("Between rounds")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		Is Between Rounds == True;
+	}
+
+	actions
+	{
+		Stop Damage Over Time(Last Damage Over Time ID);
+		disabled Destroy All HUD Text;
+		Destroy HUD Text(Global.damageHUD[0]);
+		Destroy HUD Text(Global.damageHUD[1]);
+		Global.damageWhenPointUnlock = 1;
+		Clear Status(Event Player, Burning);
+		disabled Create HUD Text(All Players(All Teams), Null, Null, Custom String(
+			"Hot Fast Mirror! v1.7.0\nAll heroes\n30s for the point to unlock\n3s to capture\nDamage over time after the point is active"),
+			Left, 0, Color(White), Color(White), Color(White), Visible To and String, Default Visibility);
+		disabled Create HUD Text(All Players(All Teams), Null, Null, Custom String(
+			"No turrets\nNo barries\nNo health packs\n-Created by Jokaes#2263"), Left, 1, Color(White), Color(White), Color(White),
+			Visible To and String, Default Visibility);
+	}
+}
+
+rule("Damage over time (when point is unlock)")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		Is Game In Progress == True;
+		Match Time <= 0;
+	}
+
+	actions
+	{
+		Set Status(Event Player, Null, Burning, 9999);
+		Damage(Event Player, Null, Global.damageWhenPointUnlock);
+		Wait(1, Ignore Condition);
+		Loop If Condition Is True;
+	}
+}
+
+rule("HUD Damage / Sec = damageWhenPointUnlock")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+
+	conditions
+	{
+		Match Time <= 1;
+		Is Game In Progress == True;
+	}
+
+	actions
+	{
+		Create HUD Text(All Players(All Teams), String("{0} = {1}", String("{0} / {1}", String("Damage"), String("{0} sec", Empty Array)),
+			Global.damageWhenPointUnlock), Null, Null, Left, -1, Color(Red), Color(White), Color(White), Visible To and String,
+			Default Visibility);
+		Global.damageHUD = Last Text ID;
+		Create HUD Text(All Players(All Teams), String("{0} = {1}", String("{0} / {1}", String("Damage"), String("{0} sec", Empty Array)),
+			Global.damageWhenPointUnlock), Null, Null, Right, -1, Color(Red), Color(White), Color(White), Visible To and String,
+			Default Visibility);
+		Modify Global Variable(damageHUD, Append To Array, Last Text ID);
+	}
+}
+
+rule("Increase 1 damage per second")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+
+	conditions
+	{
+		Match Time <= 0;
+		Is Game In Progress == True;
+	}
+
+	actions
+	{
+		Wait(1, Ignore Condition);
+		Global.damageWhenPointUnlock += 1;
+		Loop If Condition Is True;
+	}
+}
+
+rule("Description HUD")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+
+	actions
+	{
+		Create HUD Text(All Players(All Teams), Null, Null, Custom String(
+			"Hot Fast Mirror! v1.9.0\nAll heroes\n30s for the point to unlock\n3s to capture\nDamage over time after the point is active"),
+			Left, 0, Color(White), Color(White), Color(White), Visible To and String, Default Visibility);
+		Create HUD Text(All Players(All Teams), Null, Null, Custom String(
+			"No turrets\nNo barries\nNo health packs\n-Created by Jokaes#2263"), Left, 1, Color(White), Color(White), Color(White),
+			Visible To and String, Default Visibility);
+	}
+}
+
+disabled rule("Created by Jokaes#2263")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+}

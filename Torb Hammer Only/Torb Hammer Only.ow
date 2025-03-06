@@ -1,0 +1,1016 @@
+settings
+{
+	main
+	{
+		Description: "Torb Hammer Only v1.0.0 Standalone version of the minigame from Island Party - Heroes Minigames W468T    Code: PHGM1    Join my discord.gg/ZdukXgB to choose the next minigame or give feedback.    ~Created by Jokaes#2263 My codes in: jokaes.github.io"
+		Mode Name: "Torb Hammer Only"
+	}
+
+	lobby
+	{
+		Allow Players Who Are In Queue: Yes
+		Map Rotation: After A Game
+		Match Voice Chat: Enabled
+		Max Spectators: 6
+		Return To Lobby: Never
+	}
+
+	modes
+	{
+		Deathmatch
+		{
+			enabled maps
+			{
+				Workshop Island Night 0
+			}
+		}
+
+		General
+		{
+			Allow Hero Switching: Disabled
+			Game Mode Start: Immediately
+			Hero Limit: Off
+			Kill Cam: Disabled
+			Respawn As Random Hero: Enabled
+			Respawn Time Scalar: 10%
+			Score To Win: 30
+			Skins: Disabled
+		}
+	}
+
+	heroes
+	{
+		General
+		{
+			Torbjörn
+			{
+				Deploy Turret: Disabled
+				Overload Cooldown Time: 25%
+				Secondary Fire: Disabled
+				Ultimate Ability Molten Core: Disabled
+				Weapons Enabled: Forge Hammer Only
+			}
+
+			enabled heroes
+			{
+				Torbjörn
+			}
+		}
+	}
+}
+
+variables
+{
+	global:
+		0: timeCounter
+		1: roundTimer
+		2: roundNumber
+		3: playersStartOfTheRound
+		4: heroList
+		5: heroModeSelector
+		6: heroesRounds
+		7: heroOfTheRound
+		8: heroesOfPreviousRounds
+		13: discordSubtringArray
+		14: pointfeedHud
+		15: pointfeedHudTimes
+		16: pointfeedHudId
+		18: hofPlayers
+		19: hofPlayersCounter
+		20: crownPos
+		27: potatoPos
+		60: islandPartyCode
+		61: islandPartySpecialEdition
+
+	player:
+		0: queenPoints
+		3: soldierPoints
+		9: pharahHealEffect
+		10: pharahDamageBoostEffect
+		35: thirdCameraDirection
+		36: thirdCameraZoom
+		37: isOnThirdCamera
+}
+
+subroutines
+{
+	0: gameModeDescriptionMessages
+}
+
+rule("Disable bulit-in game mode & start timer variables {Game in progress GLOBAL}")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+
+	conditions
+	{
+		Is Game In Progress == True;
+	}
+
+	actions
+	{
+		Disable Built-In Game Mode Completion;
+		Disable Built-In Game Mode Music;
+		Disable Built-In Game Mode Announcer;
+		Disable Built-In Game Mode Scoring;
+		Enable Death Spectate All Players(All Players(All Teams));
+		disabled Disable Inspector Recording;
+		Pause Match Time;
+		Global.timeCounter = 0.001;
+		Global.roundTimer = 60;
+		"Timer of the round HUD separator"
+		Create HUD Text(All Players(All Teams), Null, Custom String(" "), Null, Right, -998, Color(White), Color(White), Color(White),
+			Visible To and String, Default Visibility);
+		"Creates a HUD in the top with [svr load: {0} | svr avg: {1} | svr peak: {2}]"
+		Create HUD Text(Filtered Array(Host Player, (Server Load + Server Load Average + Server Load Peak) / 3 < 128 && Custom String(
+			"#Jokaes") == String("#{0}", Host Player)), Null, Custom String("svr load: {0} | svr avg: {1} | svr peak: {2}", Server Load,
+			Server Load Average, Server Load Peak), Null, Top, -100, Color(White), Color(Lime Green), Color(White), Visible To and String,
+			Default Visibility);
+		"Creates a HUD in the top with [svr load: {0} | svr avg: {1} | svr peak: {2}]"
+		Create HUD Text(Filtered Array(Host Player, (Server Load + Server Load Average + Server Load Peak) / 3 >= 128 && (
+			Server Load + Server Load Average + Server Load Peak) / 3 <= 192 && Custom String("#Jokaes") == String("#{0}", Host Player)),
+			Null, Custom String("svr load: {0} | svr avg: {1} | svr peak: {2}", Server Load, Server Load Average, Server Load Peak), Null,
+			Top, -100, Color(White), Color(Orange), Color(White), Visible To and String, Default Visibility);
+		"Creates a HUD in the top with [svr load: {0} | svr avg: {1} | svr peak: {2}]"
+		Create HUD Text(Filtered Array(Host Player, (Server Load + Server Load Average + Server Load Peak) / 3 > 192 && Custom String(
+			"#Jokaes") == String("#{0}", Host Player)), Null, Custom String("svr load: {0} | svr avg: {1} | svr peak: {2}", Server Load,
+			Server Load Average, Server Load Peak), Null, Top, -100, Color(White), Color(Red), Color(White), Visible To and String,
+			Default Visibility);
+		Global.hofPlayers = Empty Array;
+		Global.pointfeedHud = Empty Array;
+		Global.pointfeedHudTimes = Array(True, True, True, True, True, True);
+		Global.pointfeedHudId = 0;
+		Global.playersStartOfTheRound = All Players(All Teams);
+	}
+}
+
+rule("Time Counter - Add minute")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+
+	conditions
+	{
+		Is Game In Progress == True;
+	}
+
+	actions
+	{
+		Set Match Time(Global.timeCounter);
+		Wait(60, Ignore Condition);
+		Global.timeCounter += 1;
+		Loop;
+	}
+}
+
+rule("Is in setup {GLOBAL}")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+
+	conditions
+	{
+		Is In Setup == True;
+	}
+
+	actions
+	{
+		disabled Disable Inspector Recording;
+		Enable Death Spectate All Players(All Players(All Teams));
+		Global.islandPartyCode = Custom String("PHGM1");
+		Global.islandPartySpecialEdition = Custom String("");
+		Global.roundNumber = 0;
+		disabled Global.heroModeSelector = Random Integer(0, Count Of(Global.heroList) - 1);
+		Global.heroList = Empty Array;
+		Global.heroesOfPreviousRounds = Empty Array;
+		Global.discordSubtringArray = Array(Custom String("vote for the next minigame"), Custom String("give feedback"), Custom String(
+			"report bugs"));
+		Modify Global Variable(heroList, Append To Array, Hero(Torbjörn));
+		disabled Global.heroOfTheRound = Global.heroList[Global.heroModeSelector];
+		disabled Global.heroOfTheRound = Random Value In Array(Remove From Array(Global.heroList, Global.heroesOfPreviousRounds));
+		Create HUD Text(All Players(All Teams), Custom String("CODE: {0}", Global.islandPartyCode),
+			Global.islandPartyCode == Custom String("PHGM1") ? Custom String("") : Custom String("SPECIAL EDITION"),
+			Global.islandPartySpecialEdition, Left, -998.500, Color(White), Color(Sky Blue), Color(White), Visible To and String,
+			Default Visibility);
+		Create HUD Text(All Players(All Teams), Null, Custom String(" "), Custom String("Torb Hammer Only v1.0.0"), Left, -998, Color(
+			White), Color(White), Color(Orange), Visible To and String, Default Visibility);
+		Create HUD Text(All Players(All Teams), Null, Null, Custom String(
+			"Standalone mode of the minigame of Island Party - Heroes Minigames W468T", Count Of(Global.heroList)), Left, -997, Color(
+			White), Color(White), Color(White), Visible To and String, Default Visibility);
+		Create HUD Text(All Players(All Teams), Null, Null, Custom String("Join discord.gg/4N4BAE6",
+			Global.discordSubtringArray[Global.roundNumber % 3]), Left, -996, Color(White), Color(White), Color(White),
+			Visible To and String, Default Visibility);
+		Create HUD Text(All Players(All Teams), Null, Null, Custom String("Find all my codes in: jokaes.github.io"), Left, -995.500, Color(
+			White), Color(White), Color(White), Visible To and String, Default Visibility);
+		Create HUD Text(All Players(All Teams), Null, Custom String("Created by Jokaes#2263"), Null, Left, -995, Color(White), Color(
+			White), Color(White), Visible To and String, Default Visibility);
+		Wait(1.500, Ignore Condition);
+		disabled Start Forcing Player To Be Hero(All Players(All Teams), Global.heroOfTheRound);
+		Global.potatoPos = Vector(500, 500, 500);
+		Create HUD Text(All Players(All Teams), Null, Null, Custom String(" \r\n		\r\n		\r\n		\r\n		\r\n		\r\n		"), Left, -999, Color(
+			White), Color(White), Color(White), Visible To and String, Default Visibility);
+		Create HUD Text(Filtered Array(All Players(All Teams), Count Of(Global.hofPlayers) > 0), Null, Null, Custom String("Hall of fame"),
+			Right, -600, Color(White), Color(White), Color(Orange), Visible To and Sort Order, Default Visibility);
+		Create In-World Text(All Players(All Teams), Custom String("CODE: {0}", Global.islandPartyCode), Vector(0, 200, 0), 4,
+			Clip Against Surfaces, Visible To Position and String, Color(White), Default Visibility);
+		Create Icon(Filtered Array(All Players(All Teams), Global.heroOfTheRound == Hero(Tracer)), Global.crownPos, Arrow: Down,
+			Visible To and Position, Color(Orange), True);
+		Wait(3.500, Ignore Condition);
+		Communicate(All Players(All Teams), Countdown);
+	}
+}
+
+rule("Is game in progress {PLAYER}")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		Is Game In Progress == True;
+	}
+
+	actions
+	{
+		Start Rule(gameModeDescriptionMessages, Do Nothing);
+		Enable Death Spectate All Players(Event Player);
+		Preload Hero(Event Player, Global.heroList);
+		Global.playersStartOfTheRound = All Players(All Teams);
+	}
+}
+
+rule("Player join in setup")
+{
+	event
+	{
+		Player Joined Match;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		Is In Setup == True;
+		Has Spawned(Event Player) == True;
+		Is Alive(Event Player) == True;
+	}
+
+	actions
+	{
+		Wait(0.512, Ignore Condition);
+		Event Player.queenPoints = 0;
+		Event Player.soldierPoints = 0;
+		Start Forcing Player To Be Hero(Event Player, Global.heroOfTheRound);
+		Preload Hero(Event Player, Global.heroList);
+	}
+}
+
+rule("Player join with game in progress")
+{
+	event
+	{
+		Player Joined Match;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		Is Game In Progress == True;
+		Is Alive(Event Player) == True;
+	}
+
+	actions
+	{
+		Start Rule(gameModeDescriptionMessages, Do Nothing);
+		Event Player.queenPoints = 0;
+		Event Player.soldierPoints = 0;
+		Wait(0.512, Ignore Condition);
+		Start Forcing Player To Be Hero(Event Player, Global.heroOfTheRound);
+		Teleport(Event Player, Vector(500, 500, 500));
+		Clear Status(Event Player, Unkillable);
+		Wait(0.512, Ignore Condition);
+		Kill(Event Player, Null);
+		Preload Hero(Event Player, Global.heroList);
+	}
+}
+
+rule("Force players to be the hero of the round")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		Has Spawned(Event Player) == True;
+		Is Alive(Event Player) == True;
+	}
+
+	actions
+	{
+		Start Forcing Player To Be Hero(Event Player, Global.heroOfTheRound);
+	}
+}
+
+rule("Create new round {SETUP}")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+
+	conditions
+	{
+		Is In Setup == True;
+	}
+
+	actions
+	{
+		Set Move Speed(All Players(All Teams), 100);
+		Set Gravity(All Players(All Teams), 100);
+		Global.roundTimer = 60;
+		Wait(0.032, Ignore Condition);
+		disabled Global.heroesOfPreviousRounds = Global.heroOfTheRound;
+		disabled Modify Global Variable(heroesOfPreviousRounds, Append To Array, Global.heroOfTheRound);
+		disabled Global.heroModeSelector = Random Integer(0, Count Of(Global.heroList) - 1);
+		disabled Global.heroesRounds[Global.heroModeSelector] = True;
+		disabled Global.heroOfTheRound = Global.heroList[Global.heroModeSelector];
+		Global.heroOfTheRound = Random Value In Array(Remove From Array(Global.heroList, Global.heroesOfPreviousRounds));
+		Preload Hero(All Players(All Teams), Global.heroOfTheRound);
+		Wait(0.032, Ignore Condition);
+		disabled Loop If(Global.heroOfTheRound == Global.heroesOfPreviousRounds);
+		Loop If(Is True For Any(Global.heroesOfPreviousRounds, Current Array Element == Global.heroOfTheRound));
+		Global.heroModeSelector = Index Of Array Value(Global.heroList, Global.heroOfTheRound);
+		Skip If(Global.heroOfTheRound == Hero(Roadhog), 1);
+		Respawn(All Players(All Teams));
+		Resurrect(All Players(All Teams));
+		Wait(0.250, Ignore Condition);
+		Start Forcing Player To Be Hero(All Players(All Teams), Global.heroOfTheRound);
+		Global.roundNumber += 1;
+		disabled Big Message(All Players(All Teams), Custom String("ROUND {0}", Global.roundNumber));
+		Small Message(All Players(All Teams), Custom String("ROUND {0}", Global.roundNumber));
+		Chase Global Variable At Rate(roundTimer, 0, 1, None);
+		Global.playersStartOfTheRound = All Players(All Teams);
+		Destroy Effect(All Players(All Teams).pharahHealEffect);
+		Destroy Effect(All Players(All Teams).pharahDamageBoostEffect);
+		Play Effect(All Players(All Teams), Explosion Sound, Color(White), All Players(All Teams), 200);
+	}
+}
+
+rule("Description and credit (Small Messages)")
+{
+	event
+	{
+		Subroutine;
+		gameModeDescriptionMessages;
+	}
+
+	actions
+	{
+		Wait(3.500, Ignore Condition);
+		Small Message(Event Player, Custom String("Torb Hammer Only v1.0.0"));
+		Wait(3.500, Ignore Condition);
+		Small Message(Event Player, Custom String("Play more minigames like this in Island Party W468T", Count Of(Global.heroList)));
+		Wait(3.500, Ignore Condition);
+		Small Message(Event Player, Custom String("Created by Jokaes#2263"));
+	}
+}
+
+rule("On kill: full heal")
+{
+	event
+	{
+		Player Dealt Final Blow;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		Victim != Event Player;
+		Hero Of(Event Player) != Hero(Ana);
+		Hero Of(Event Player) != Hero(Brigitte);
+		Hero Of(Event Player) != Hero(Doomfist);
+		Hero Of(Event Player) != Hero(D.Va);
+		Hero Of(Event Player) != Hero(Echo);
+		Hero Of(Event Player) != Hero(Cassidy);
+		Hero Of(Event Player) != Hero(Mei);
+		Hero Of(Event Player) != Hero(Mercy);
+		Hero Of(Event Player) != Hero(Pharah);
+		Hero Of(Event Player) != Hero(Roadhog);
+		Hero Of(Event Player) != Hero(Sigma);
+		Hero Of(Event Player) != Hero(Soldier: 76);
+		Hero Of(Event Player) != Hero(Sombra);
+		Hero Of(Event Player) != Hero(Tracer);
+		Hero Of(Event Player) != Hero(Winston);
+		Hero Of(Event Player) != Hero(Zenyatta);
+	}
+
+	actions
+	{
+		Play Effect(All Players(All Teams), Good Pickup Effect, Color(Yellow), Event Player, 1);
+		Heal(Event Player, Null, Max Health(Event Player));
+	}
+}
+
+rule("On kill: cooldown reset")
+{
+	event
+	{
+		Player Dealt Final Blow;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		Victim != Event Player;
+		Hero Of(Event Player) != Hero(Ana);
+		Hero Of(Event Player) != Hero(Echo);
+		Hero Of(Event Player) != Hero(Cassidy);
+		Hero Of(Event Player) != Hero(Sigma);
+		Hero Of(Event Player) != Hero(Tracer);
+		Hero Of(Event Player) != Hero(Winston);
+	}
+
+	actions
+	{
+		Set Ability Cooldown(Event Player, Button(Primary Fire), 0);
+		Set Ability Cooldown(Event Player, Button(Secondary Fire), 0);
+		Set Ability Cooldown(Event Player, Button(Ability 1), 0);
+		Set Ability Cooldown(Event Player, Button(Ability 2), 0);
+	}
+}
+
+rule("On kill: score")
+{
+	event
+	{
+		Player Dealt Final Blow;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		Victim != Event Player;
+		Hero Of(Event Player) != Hero(D.Va);
+		Hero Of(Event Player) != Hero(Echo);
+		Hero Of(Event Player) != Hero(Cassidy);
+		Hero Of(Event Player) != Hero(Sigma);
+		Hero Of(Event Player) != Hero(Tracer);
+	}
+
+	actions
+	{
+		Play Effect(All Players(All Teams), Good Pickup Effect, Color(White), Event Player, 1);
+		Play Effect(All Players(All Teams), Buff Explosion Sound, Color(White), Event Player, 100);
+		Modify Player Score(Event Player, 1);
+		Small Message(Event Player, Custom String("+1 point with {0} {1}", Hero Icon String(Hero Of(Event Player)), Hero Of(
+			Event Player)));
+	}
+}
+
+rule("HoF player HUD")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+
+	conditions
+	{
+		Global.hofPlayersCounter != Count Of(Global.hofPlayers);
+	}
+
+	actions
+	{
+		Create HUD Text(All Players(All Teams), Null, Null, Custom String("{0}", Last Of(Global.hofPlayers)), Right, -500, Color(White),
+			Color(White), Color(Orange), Visible To and Sort Order, Default Visibility);
+		Global.hofPlayersCounter = Count Of(Global.hofPlayers);
+	}
+}
+
+rule("Hof append")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	actions
+	{
+		If(Score Of(Event Player) >= 200);
+			If(Array Contains(Global.hofPlayers, Custom String("{0}", Event Player)) == False);
+				Modify Global Variable(hofPlayers, Append To Array, Custom String("{0}", Event Player));
+			End;
+		End;
+		Wait(10, Ignore Condition);
+		Loop;
+	}
+}
+
+rule("HoF effect")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		Score Of(Event Player) >= 200;
+	}
+
+	actions
+	{
+		Create Effect(Filtered Array(All Players(All Teams), Is Alive(Event Player)), Sparkles, Color(Orange), Event Player, 1,
+			Visible To Position and Radius);
+		Play Effect(Event Player, Buff Impact Sound, Color(White), Event Player, 200);
+		Wait(1, Ignore Condition);
+		Play Effect(Event Player, Buff Explosion Sound, Color(White), Event Player, 200);
+		Play Effect(Event Player, Buff Impact Sound, Color(White), Event Player, 200);
+		Wait(1, Ignore Condition);
+		Play Effect(Event Player, Buff Explosion Sound, Color(White), Event Player, 200);
+		Play Effect(Event Player, Buff Impact Sound, Color(White), Event Player, 200);
+		Wait(1, Ignore Condition);
+		Play Effect(Event Player, Buff Explosion Sound, Color(White), Event Player, 200);
+	}
+}
+
+rule("----- HEROES -----")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+}
+
+rule("----- THIRD CAMERA PERSON ----- Made by Mitsiee. More at https://workshop.codes/third-person")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+}
+
+rule("Enable/disable third camera person")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		Is Communicating(Event Player, Fall Back) == True;
+	}
+
+	actions
+	{
+		If(Event Player.isOnThirdCamera == False);
+			Event Player.isOnThirdCamera = True;
+			Small Message(Event Player, Custom String(
+				"----- THIRD CAMERA PERSON ----- Made by Mitsiee. More at https://workshop.codes/third-person"));
+		Else;
+			Event Player.isOnThirdCamera = False;
+			Stop Camera(Event Player);
+		End;
+	}
+}
+
+rule("Initialise")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		Event Player.isOnThirdCamera == True;
+	}
+
+	actions
+	{
+		Event Player.thirdCameraDirection = 1;
+		Event Player.thirdCameraZoom = -2.500;
+	}
+}
+
+rule("Set Third Person")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		Is Alive(Event Player) == True;
+		((Hero Of(Event Player) == Hero(Widowmaker) || Hero Of(Event Player) == Hero(Ashe) || Hero Of(Event Player) == Hero(Ana))
+			&& Is Button Held(Event Player, Button(Secondary Fire))) != True;
+		Event Player.isOnThirdCamera == True;
+	}
+
+	actions
+	{
+		Start Camera(Event Player, Ray Cast Hit Position(Eye Position(Event Player), Eye Position(Event Player) + World Vector Of(Vector(
+			Event Player.thirdCameraDirection * Min(Event Player.thirdCameraZoom / 2.500, -0.750), 0, 0), Event Player, Rotation)
+			+ Facing Direction Of(Event Player) * Event Player.thirdCameraZoom, All Players(All Teams), Event Player, False),
+			Ray Cast Hit Position(Eye Position(Event Player), Eye Position(Event Player) + Facing Direction Of(Event Player) * 200,
+			All Players(All Teams), Event Player, False), 60);
+		disabled Start Camera(Event Player, Ray Cast Hit Position(Eye Position(Event Player), Eye Position(Event Player) + World Vector Of(Vector(
+			Event Player.thirdCameraDirection, 0, 0), Event Player, Rotation) + Facing Direction Of(Event Player)
+			* Event Player.thirdCameraZoom, All Players(All Teams), Event Player, False), Ray Cast Hit Position(Eye Position(Event Player),
+			Eye Position(Event Player) + Facing Direction Of(Event Player) * 200, All Players(All Teams), Event Player, False), 60);
+	}
+}
+
+rule("Unset Third Person for specific conditions")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		((Hero Of(Event Player) == Hero(Widowmaker) || Hero Of(Event Player) == Hero(Ashe) || Hero Of(Event Player) == Hero(Ana))
+			&& Is Button Held(Event Player, Button(Secondary Fire))) == True;
+		Event Player.isOnThirdCamera == True;
+	}
+
+	actions
+	{
+		Stop Camera(Event Player);
+	}
+}
+
+rule("Pressing Interact")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		Is Button Held(Event Player, Button(Interact)) == True;
+		Event Player.isOnThirdCamera == True;
+	}
+
+	actions
+	{
+		If(Event Player.thirdCameraDirection == -1);
+			Event Player.thirdCameraDirection = 1;
+		Else;
+			Event Player.thirdCameraDirection = -1;
+		End;
+	}
+}
+
+rule("----- TEST -----")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+}
+
+disabled rule("Lobby with Dummies (TEST)")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+
+	conditions
+	{
+		Is In Setup == True;
+		(Custom String("Jokaes") == Custom String("{0}", Host Player)) == True;
+	}
+
+	actions
+	{
+		Create Dummy Bot(Hero(Ashe), All Teams, -1, Vector(0, 0, 0), Vector(0, 0, 0));
+		disabled Loop If(Count Of(All Players(All Teams)) < 2);
+		disabled Loop If(Count Of(All Players(All Teams)) < 3);
+		Loop If(Count Of(All Players(All Teams)) < 5);
+		disabled Loop If(Count Of(All Players(All Teams)) < 6);
+		disabled Loop If(Count Of(All Players(All Teams)) < 12);
+	}
+}
+
+disabled rule("Dummys Summon (TEST)")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		Is Communicating(Event Player, Hello) == True;
+		(Custom String("Jokaes") == Custom String("{0}", Host Player)) == True;
+	}
+
+	actions
+	{
+		Create Dummy Bot(Hero(Ashe), All Teams, -1, Position Of(Event Player), Vector(0, 0, 0));
+	}
+}
+
+disabled rule("Dummy Aim Bot (TEST)")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		Is Dummy Bot(Event Player) == True;
+		(Custom String("Jokaes") == Custom String("{0}", Host Player)) == True;
+	}
+
+	actions
+	{
+		Start Facing(Event Player, Direction Towards(Event Player, Sorted Array(Filtered Array(All Players(All Teams), Is Alive(
+			Current Array Element)), Distance Between(Event Player, Current Array Element))[1]), 10000, To World, Direction and Turn Rate);
+		Start Holding Button(Event Player, Button(Ability 2));
+		Start Holding Button(Event Player, Button(Ability 1));
+		Start Holding Button(Event Player, Button(Secondary Fire));
+		Start Holding Button(Event Player, Button(Primary Fire));
+		Wait(Random Real(0.300, 1), Ignore Condition);
+		Stop Holding Button(Event Player, Button(Primary Fire));
+		Stop Holding Button(Event Player, Button(Secondary Fire));
+		Stop Holding Button(Event Player, Button(Ability 1));
+		Stop Holding Button(Event Player, Button(Ability 2));
+		Loop If Condition Is True;
+	}
+}
+
+disabled rule("Dummy Ult (TEST)")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		Is Dummy Bot(Event Player) == True;
+		Ultimate Charge Percent(Event Player) == 100;
+		(Custom String("Jokaes") == Custom String("{0}", Host Player)) == True;
+	}
+
+	actions
+	{
+		Press Button(Event Player, Button(Ultimate));
+	}
+}
+
+disabled rule("Dummy Meele loop (TEST)")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		Is Dummy Bot(Event Player) == True;
+		(Custom String("Jokaes") == Custom String("{0}", Host Player)) == True;
+	}
+
+	actions
+	{
+		Start Facing(Event Player, Direction Towards(Event Player, Closest Player To(Event Player, Opposite Team Of(Team Of(
+			Event Player)))), 10000, To World, Direction and Turn Rate);
+		Press Button(Event Player, Button(Melee));
+		Wait(Random Real(0.250, 0.350), Ignore Condition);
+		Loop If Condition Is True;
+	}
+}
+
+disabled rule("Dummy Moving (TEST)")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		Is Dummy Bot(Event Player) == True;
+		(Custom String("Jokaes") == Custom String("{0}", Host Player)) == True;
+	}
+
+	actions
+	{
+		Start Throttle In Direction(Event Player, Direction Towards(Event Player, Sorted Array(Filtered Array(All Players(All Teams),
+			Is Alive(Current Array Element)), Distance Between(Event Player, Current Array Element))[1]), 1, To World,
+			Replace existing throttle, Direction and Magnitude);
+	}
+}
+
+disabled rule("Skip until (TEST)")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		disabled Is Button Held(Event Player, Button(Interact)) == True;
+		Global.heroOfTheRound != Hero(Mei);
+		Global.roundTimer <= 58;
+		(Custom String("Jokaes") == Custom String("{0}", Host Player)) == True;
+	}
+
+	actions
+	{
+		Global.roundTimer = 1;
+		disabled Press Button(Event Player, Button(Interact));
+	}
+}
+
+disabled rule("Skip round (TEST)")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		Is Button Held(Event Player, Button(Interact)) == True;
+		(Custom String("Jokaes") == Custom String("{0}", Host Player)) == True;
+		(Custom String("Jokaes") == Custom String("{0}", Event Player)) == True;
+	}
+
+	actions
+	{
+		disabled Kill(All Players(All Teams), Null);
+		Global.roundTimer = 1;
+		disabled Set Status(Event Player, Null, Stunned, 1);
+	}
+}
+
+disabled rule("Force dummy to be hero of the round (TEST)")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		Is Dummy Bot(Event Player) == True;
+		Hero Of(Event Player) == Hero(Ashe);
+		(Custom String("Jokaes") == Custom String("{0}", Host Player)) == True;
+	}
+
+	actions
+	{
+		Start Forcing Player To Be Hero(Event Player, Global.heroOfTheRound);
+	}
+}
+
+disabled rule("Destroy the dummies (TEST)")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		disabled (Custom String("Jokaes") == Custom String("{0}", Host Player)) == True;
+		disabled (Custom String("Jokaes") == Custom String("{0}", Event Player)) == True;
+		Is Button Held(Event Player, Button(Ultimate)) == True;
+		Is Button Held(Event Player, Button(Reload)) == True;
+		Is Button Held(Event Player, Button(Interact)) == True;
+	}
+
+	actions
+	{
+		Destroy All Dummy Bots;
+	}
+}
+
+disabled rule("Ray Cast Detector (TEST)")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		Is Button Held(Event Player, Button(Primary Fire)) == True;
+	}
+
+	actions
+	{
+		Create HUD Text(All Players(All Teams), Ray Cast Hit Position(Eye Position(Event Player), Eye Position(Event Player)
+			+ Facing Direction Of(Event Player) * 200, Null, All Players(All Teams), False), Null, Null, Left, 0, Color(White), Color(
+			White), Color(White), Visible To, Default Visibility);
+		Create Effect(Event Player, Orb, Color(Yellow), Ray Cast Hit Position(Eye Position(Event Player), Eye Position(Event Player)
+			+ Facing Direction Of(Event Player) * 200, Null, All Players(All Teams), False), 1, None);
+		Create Beam Effect(All Players(All Teams), Good Beam, Eye Position(Event Player), Ray Cast Hit Position(Eye Position(Event Player),
+			Eye Position(Event Player) + Facing Direction Of(Event Player) * 200, All Players(All Teams), All Players(All Teams), False),
+			Color(Red), None);
+	}
+}
+
+disabled rule("Debug HUDs (TEST)")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		(Custom String("Jokaes") == Custom String("{0}", Host Player)) == True;
+	}
+
+	actions
+	{
+		Create HUD Text(Event Player, Custom String("{0} m/s", Horizontal Speed Of(Event Player)), Null, Null, Left, 0, Color(White),
+			Color(White), Color(White), Visible To and String, Default Visibility);
+		disabled Create HUD Text(Event Player, Custom String("{0}", Position Of(Event Player)), Null, Null, Left, 0, Color(White), Color(White),
+			Color(White), Visible To and String, Default Visibility);
+		disabled Create HUD Text(Event Player, Custom String("{0}", Y Component Of(Position Of(Event Player))), Null, Null, Left, 0, Color(White),
+			Color(White), Color(White), Visible To and String, Default Visibility);
+		disabled Create HUD Text(Event Player, Custom String("{0}", Distance Between(Event Player, Vector(0, 10, 0))), Null, Null, Left, 0, Color(
+			White), Color(White), Color(White), Visible To and String, Default Visibility);
+		disabled Create HUD Text(Event Player, Custom String("{0}", Count Of(Global.pointfeedHud)), Null, Null, Left, 0, Color(White), Color(White),
+			Color(White), Visible To and String, Default Visibility);
+		disabled Create HUD Text(Event Player, Custom String("{0}", Count Of(Global.pointfeedHudTimes)), Null, Null, Left, 0, Color(White), Color(
+			White), Color(White), Visible To and String, Default Visibility);
+		disabled Create HUD Text(Event Player, Custom String("{0}", Throttle Of(Event Player)), Null, Null, Left, 0, Color(White), Color(White),
+			Color(White), Visible To and String, Default Visibility);
+	}
+}
+
+rule("Created by Jokaes#2263")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+}

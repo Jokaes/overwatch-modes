@@ -1,0 +1,781 @@
+settings
+{
+	main
+	{
+		Description: "1000 DMG = NEXT HERO aka ∞ Infinite Damage Gun Game. Change hero every 1000 damage. List is 8 DPS + 1 Tank (5th) + 1 Supp (10th) in loop. No turrets. v11.1.0 Join my discord.gg/ZdukXgB Created by Jokaes#2263 Updated code & more: jokaes.github.io"
+		Mode Name: "1000 DMG = NEXT HERO"
+	}
+
+	lobby
+	{
+		Allow Players Who Are In Queue: Yes
+		Map Rotation: After A Game
+		Max Spectators: 6
+		Return To Lobby: Never
+	}
+
+	modes
+	{
+		Deathmatch
+		{
+			enabled maps
+			{
+				Havana 0
+				Workshop Chamber 0
+				Workshop Expanse 0
+				Workshop Island 0
+			}
+		}
+
+		General
+		{
+			Game Mode Start: Immediately
+			Kill Feed: Disabled
+			Respawn As Random Hero: Enabled
+			Respawn Time Scalar: 0%
+		}
+	}
+
+	heroes
+	{
+		General
+		{
+			Ultimate Generation: 200%
+
+			Ashe
+			{
+				Ultimate Ability B.O.B.: Disabled
+			}
+
+			Symmetra
+			{
+				Sentry Turret: Disabled
+			}
+
+			Torbjörn
+			{
+				Deploy Turret: Disabled
+			}
+		}
+	}
+}
+
+variables
+{
+	global:
+		0: timeCounter
+		1: leaderboardArray
+		2: arenaMap1
+		3: arenaMap2
+		4: arenaMap3
+		5: arenaMap4
+
+	player:
+		0: damageDone
+		1: heroList
+		2: nextObjective
+		3: heroIcon
+		5: damageDisplay
+		6: damageDisplayPos
+		7: damageDisplayScale
+}
+
+subroutines
+{
+	0: gameModeDescriptionMessages
+}
+
+rule("Disable bulit-in game mode & start timer variables {Game in progress GLOBAL}")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+
+	conditions
+	{
+		Is Game In Progress == True;
+	}
+
+	actions
+	{
+		Disable Built-In Game Mode Scoring;
+		Disable Built-In Game Mode Completion;
+		Disable Built-In Game Mode Announcer;
+		Disable Built-In Game Mode Music;
+		Disable Inspector Recording;
+		Pause Match Time;
+		Global.timeCounter = 0.001;
+		"Creates a HUD in the top with [svr load: {0} | svr avg: {1} | svr peak: {2}]"
+		Create HUD Text(Filtered Array(Host Player, Custom String("#Jokaes") == String("#{0}", Host Player)), Null, Custom String(
+			"svr load: {0} | svr avg: {1} | svr peak: {2}", Server Load, Server Load Average, Server Load Peak), Null, Top, -100, Color(
+			White), Color(Lime Green), Color(White), Visible To and String, Default Visibility);
+	}
+}
+
+rule("Gamemode description, create objective, next hero HUDs {Game in progress PLAYER}")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		Is Game In Progress == True;
+	}
+
+	actions
+	{
+		Start Rule(gameModeDescriptionMessages, Do Nothing);
+		Wait(4.500, Ignore Condition);
+		Set Objective Description(Event Player, String("{0} {1} {2}", String("Deal"), Round To Integer(
+			Event Player.nextObjective - Event Player.damageDone, Down), String("{0} -> {1}", String("Damage"), Hero Icon String(
+			Event Player.heroList[Event Player.nextObjective / 1000]))), Visible To and String);
+		Create HUD Text(Event Player, Null, String("{0}: {1}", String("Next Hero"), String("{0} {1}", Event Player.nextObjective,
+			Event Player.heroList[Event Player.nextObjective / 1000])), Null, Top, 1, Color(White), Color(White), Color(White),
+			Visible To and String, Default Visibility);
+	}
+}
+
+rule("Damage track")
+{
+	event
+	{
+		Player Dealt Damage;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		Victim != Attacker;
+	}
+
+	actions
+	{
+		Event Player.damageDone += Event Damage;
+		disabled Skip If(Score Of(Event Player) >= 9999, 1);
+		"Updates the score only if is necesary"
+		If(Score Of(Event Player) < 9999);
+			Set Player Score(Event Player, Event Player.damageDone);
+		End;
+		Event Player.nextObjective = (Round To Integer(Event Player.damageDone / 1000, Down) + 1) * 1000;
+		Destroy In-World Text(Event Player.damageDisplay);
+		Event Player.damageDisplayPos = Eye Position(Victim);
+		Event Player.damageDisplayScale = 0.700 + Event Damage / 20;
+		"Creates a WHITE damage display if event wasn't critical else creates a RED one"
+		If(!Event Was Critical Hit);
+			disabled Skip If(Event Was Critical Hit, 1);
+			Create In-World Text(Event Player, Round To Integer(Event Damage, To Nearest), Event Player.damageDisplayPos,
+				Event Player.damageDisplayScale, Clip Against Surfaces, Visible To Position and String, Color(White), Default Visibility);
+		Else;
+			disabled Skip If(!Event Was Critical Hit, 1);
+			Create In-World Text(Event Player, Round To Integer(Event Damage, To Nearest), Event Player.damageDisplayPos,
+				Event Player.damageDisplayScale, Clip Against Surfaces, Visible To Position and String, Color(Red), Default Visibility);
+		End;
+		Event Player.damageDisplay = Last Text ID;
+	}
+}
+
+disabled rule("Leaderboard {Reevaluation}")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+
+	actions
+	{
+		Global.leaderboardArray = Sorted Array(All Players(All Teams), Current Array Element.damageDone);
+		Wait(1, Ignore Condition);
+		Loop;
+	}
+}
+
+disabled rule("Leaderboard {HUD}")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+
+	actions
+	{
+		Create HUD Text(Filtered Array(All Players(All Teams), Global.leaderboardArray[0] != Null), Null, Null, String("{0} : {1} : {2}",
+			Hero Icon String(Hero Of(Global.leaderboardArray[0])), Global.leaderboardArray[0], Round To Integer(
+			Global.leaderboardArray[0].damageDone, To Nearest)), Right, 11, Color(White), Color(White), Color(White),
+			Visible To and String, Default Visibility);
+		Create HUD Text(Filtered Array(All Players(All Teams), Global.leaderboardArray[1] != Null), Null, Null, String("{0} : {1} : {2}",
+			Hero Icon String(Hero Of(Global.leaderboardArray[1])), Global.leaderboardArray[1], Round To Integer(
+			Global.leaderboardArray[1].damageDone, To Nearest)), Right, 10, Color(White), Color(White), Color(White),
+			Visible To and String, Default Visibility);
+		Create HUD Text(Filtered Array(All Players(All Teams), Global.leaderboardArray[2] != Null), Null, Null, String("{0} : {1} : {2}",
+			Hero Icon String(Hero Of(Global.leaderboardArray[2])), Global.leaderboardArray[2], Round To Integer(
+			Global.leaderboardArray[2].damageDone, To Nearest)), Right, 9, Color(White), Color(White), Color(White), Visible To and String,
+			Default Visibility);
+		Create HUD Text(Filtered Array(All Players(All Teams), Global.leaderboardArray[3] != Null), Null, Null, String("{0} : {1} : {2}",
+			Hero Icon String(Hero Of(Global.leaderboardArray[3])), Global.leaderboardArray[3], Round To Integer(
+			Global.leaderboardArray[3].damageDone, To Nearest)), Right, 8, Color(White), Color(White), Color(White), Visible To and String,
+			Default Visibility);
+		Create HUD Text(Filtered Array(All Players(All Teams), Global.leaderboardArray[4] != Null), Null, Null, String("{0} : {1} : {2}",
+			Hero Icon String(Hero Of(Global.leaderboardArray[4])), Global.leaderboardArray[4], Round To Integer(
+			Global.leaderboardArray[4].damageDone, To Nearest)), Right, 7, Color(White), Color(White), Color(White), Visible To and String,
+			Default Visibility);
+		Create HUD Text(Filtered Array(All Players(All Teams), Global.leaderboardArray[5] != Null), Null, Null, String("{0} : {1} : {2}",
+			Hero Icon String(Hero Of(Global.leaderboardArray[5])), Global.leaderboardArray[5], Round To Integer(
+			Global.leaderboardArray[5].damageDone, To Nearest)), Right, 6, Color(White), Color(White), Color(White), Visible To and String,
+			Default Visibility);
+		Create HUD Text(Filtered Array(All Players(All Teams), Global.leaderboardArray[6] != Null), Null, Null, String("{0} : {1} : {2}",
+			Hero Icon String(Hero Of(Global.leaderboardArray[6])), Global.leaderboardArray[6], Round To Integer(
+			Global.leaderboardArray[6].damageDone, To Nearest)), Right, 5, Color(White), Color(White), Color(White), Visible To and String,
+			Default Visibility);
+		Create HUD Text(Filtered Array(All Players(All Teams), Global.leaderboardArray[7] != Null), Null, Null, String("{0} : {1} : {2}",
+			Hero Icon String(Hero Of(Global.leaderboardArray[7])), Global.leaderboardArray[7], Round To Integer(
+			Global.leaderboardArray[7].damageDone, To Nearest)), Right, 4, Color(White), Color(White), Color(White), Visible To and String,
+			Default Visibility);
+		Create HUD Text(Filtered Array(All Players(All Teams), Global.leaderboardArray[8] != Null), Null, Null, String("{0} : {1} : {2}",
+			Hero Icon String(Hero Of(Global.leaderboardArray[8])), Global.leaderboardArray[8], Round To Integer(
+			Global.leaderboardArray[8].damageDone, To Nearest)), Right, 3, Color(White), Color(White), Color(White), Visible To and String,
+			Default Visibility);
+		Create HUD Text(Filtered Array(All Players(All Teams), Global.leaderboardArray[9] != Null), Null, Null, String("{0} : {1} : {2}",
+			Hero Icon String(Hero Of(Global.leaderboardArray[9])), Global.leaderboardArray[9], Round To Integer(
+			Global.leaderboardArray[9].damageDone, To Nearest)), Right, 2, Color(White), Color(White), Color(White), Visible To and String,
+			Default Visibility);
+		Create HUD Text(Filtered Array(All Players(All Teams), Global.leaderboardArray[10] != Null), Null, Null, String("{0} : {1} : {2}",
+			Hero Icon String(Hero Of(Global.leaderboardArray[10])), Global.leaderboardArray[10], Round To Integer(
+			Global.leaderboardArray[10].damageDone, To Nearest)), Right, 1, Color(White), Color(White), Color(White),
+			Visible To and String, Default Visibility);
+		Create HUD Text(Filtered Array(All Players(All Teams), Global.leaderboardArray[11] != Null), Null, Null, String("{0} : {1} : {2}",
+			Hero Icon String(Hero Of(Global.leaderboardArray[11])), Global.leaderboardArray[11], Round To Integer(
+			Global.leaderboardArray[11].damageDone, To Nearest)), Right, 0, Color(White), Color(White), Color(White),
+			Visible To and String, Default Visibility);
+	}
+}
+
+rule("Leaderboard 11.1.0")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	actions
+	{
+		Create HUD Text(All Players(All Teams), Null, Null, Custom String("{0} : {1} : {2}", Hero Icon String(Hero Of(Event Player)),
+			Event Player, Round To Integer(Event Player.damageDone, To Nearest)), Right, Event Player.damageDone * -1 / 1000, Color(White),
+			Color(White), Color(White), Visible To Sort Order and String, Visible Always);
+	}
+}
+
+rule("Hero List - Infinite 8 DPS + 1 Tank (5th) + 1 Supp (10th)")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	actions
+	{
+		Event Player.heroList = All Damage Heroes;
+		Event Player.heroList = Randomized Array(Event Player.heroList);
+		Event Player.heroList = Array Slice(Event Player.heroList, 0, 9);
+		Event Player.heroList[4] = Random Value In Array(All Tank Heroes);
+		Modify Player Variable(Event Player, heroList, Append To Array, Random Value In Array(All Support Heroes));
+	}
+}
+
+rule("Preload Heroes")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	actions
+	{
+		Preload Hero(Event Player, Event Player.heroList);
+	}
+}
+
+rule("INFINITO ∞")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		Index Of Array Value(All Support Heroes, Hero Of(Event Player)) != -1;
+		Has Spawned(Event Player) == True;
+	}
+
+	actions
+	{
+		Modify Player Variable(Event Player, heroList, Append To Array, Random Value In Array(All Damage Heroes));
+		Wait(0.250, Ignore Condition);
+		Modify Player Variable(Event Player, heroList, Append To Array, Random Value In Array(All Damage Heroes));
+		Wait(0.250, Ignore Condition);
+		Modify Player Variable(Event Player, heroList, Append To Array, Random Value In Array(All Damage Heroes));
+		Wait(0.250, Ignore Condition);
+		Modify Player Variable(Event Player, heroList, Append To Array, Random Value In Array(All Damage Heroes));
+		Wait(0.250, Ignore Condition);
+		Modify Player Variable(Event Player, heroList, Append To Array, Random Value In Array(All Tank Heroes));
+		Wait(0.250, Ignore Condition);
+		Modify Player Variable(Event Player, heroList, Append To Array, Random Value In Array(All Damage Heroes));
+		Wait(0.250, Ignore Condition);
+		Modify Player Variable(Event Player, heroList, Append To Array, Random Value In Array(All Damage Heroes));
+		Wait(0.250, Ignore Condition);
+		Modify Player Variable(Event Player, heroList, Append To Array, Random Value In Array(All Damage Heroes));
+		Wait(0.250, Ignore Condition);
+		Modify Player Variable(Event Player, heroList, Append To Array, Random Value In Array(All Damage Heroes));
+		Wait(0.250, Ignore Condition);
+		Modify Player Variable(Event Player, heroList, Append To Array, Random Value In Array(All Support Heroes));
+	}
+}
+
+rule("In Setup OR In Game in progress -> Starting Hero -> HeroList[0]")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		(Is In Setup || Is Game In Progress) == True;
+	}
+
+	actions
+	{
+		Start Forcing Player To Be Hero(Event Player, First Of(Event Player.heroList));
+		Event Player.nextObjective = 1000;
+	}
+}
+
+rule("Start forcing next hero")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		Hero Of(Event Player) != Event Player.heroList[Event Player.nextObjective / 1000 - 1];
+		Is Alive(Event Player) == True;
+		Event Player.damageDone > 0;
+	}
+
+	actions
+	{
+		Event Player.nextObjective = (Round To Integer(Event Player.damageDone / 1000, Down) + 1) * 1000;
+		Start Forcing Player To Be Hero(Event Player, Event Player.heroList[Event Player.nextObjective / 1000 - 1]);
+		Small Message(Event Player, String("{0}: {1}", String("{0} {1}", String("You"), String("Hero")), Hero Icon String(
+			Event Player.heroList[Event Player.nextObjective / 1000 - 1])));
+		Create In-World Text(All Players(All Teams), Hero Icon String(Event Player.heroList[Event Player.nextObjective / 1000 - 1]),
+			Event Player, 1, Clip Against Surfaces, Visible To Position and String, Color(White), Default Visibility);
+		Event Player.heroIcon = Last Text ID;
+		Wait(1.375, Ignore Condition);
+		Destroy In-World Text(Event Player.heroIcon);
+	}
+}
+
+rule("Time Counter - Add minute")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+
+	conditions
+	{
+		Is Game In Progress == True;
+	}
+
+	actions
+	{
+		Set Match Time(Global.timeCounter);
+		Wait(60, Ignore Condition);
+		Global.timeCounter += 1;
+		Loop;
+	}
+}
+
+rule("Global init -Created by Beemoo")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+
+	conditions
+	{
+		Current Map == Map(Havana);
+	}
+
+	actions
+	{
+		Global.arenaMap1 = False;
+		Global.arenaMap2 = Vector(215, 35, -40);
+		Global.arenaMap3 = Empty Array;
+		Modify Global Variable(arenaMap3, Append To Array, Vector(227.500, 27.500, -57));
+		Modify Global Variable(arenaMap3, Append To Array, Vector(227.500, 27.500, -40.500));
+		Modify Global Variable(arenaMap3, Append To Array, Vector(227.500, 27.500, -25.500));
+		Modify Global Variable(arenaMap3, Append To Array, Vector(218, 27.500, -16.500));
+		Modify Global Variable(arenaMap3, Append To Array, Vector(204.830, 27.500, -16.500));
+		Modify Global Variable(arenaMap3, Append To Array, Vector(191.170, 27.500, -20.780));
+		Modify Global Variable(arenaMap3, Append To Array, Vector(181.600, 27.500, -30.100));
+		Modify Global Variable(arenaMap3, Append To Array, Vector(171.190, 28.210, -42));
+		Modify Global Variable(arenaMap3, Append To Array, Vector(171.190, 28.210, -55));
+		Modify Global Variable(arenaMap3, Append To Array, Vector(185, 27.500, -64.600));
+		Modify Global Variable(arenaMap3, Append To Array, Vector(197.600, 27.500, -64.590));
+		Modify Global Variable(arenaMap3, Append To Array, Vector(210.200, 27.500, -64.590));
+		Modify Global Variable(arenaMap3, Append To Array, Vector(222.600, 27.500, -64.590));
+		Global.arenaMap4 = Count Of(Global.arenaMap3) - 1;
+		Create Effect(All Players(All Teams), Sphere, Color(Red), Vector(184, -71.800, -46), 100, Visible To Position and Radius);
+		Skip If(!Global.arenaMap1, 1);
+		Create Effect(All Players(All Teams), Orb, Color(Purple), Global.arenaMap2, 1, Visible To Position and Radius);
+	}
+}
+
+rule("Effect create loop -Created by Beemoo")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+
+	conditions
+	{
+		Global.arenaMap1 == True;
+		Global.arenaMap4 > 0;
+		Current Map == Map(Havana);
+	}
+
+	actions
+	{
+		Wait(0.250, Ignore Condition);
+		Create Effect(All Players(All Teams), Ring, Color(Yellow), Global.arenaMap3[Global.arenaMap4], 1.200, Visible To);
+		Global.arenaMap4 -= 1;
+		Loop If Condition Is True;
+	}
+}
+
+rule("No entry pillars (knock, tele) -Created by Beemoo")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		Is True For Any(Global.arenaMap3, Distance Between(Current Array Element, Event Player) < 1.250) == True;
+		Current Map == Map(Havana);
+	}
+
+	actions
+	{
+		Wait(0.500, Ignore Condition);
+		Abort If Condition Is False;
+		Apply Impulse(Event Player, Direction Towards(Position Of(Event Player), First Of(Global.arenaMap2) + Vector(0, 10, 0)), 12,
+			To World, Cancel Contrary Motion);
+		Set Status(Event Player, Null, Stunned, 1);
+		Play Effect(All Players(All Teams), Debuff Impact Sound, Color(White), Event Player, 100);
+		Small Message(Event Player, String("{0} {1}", String("No"), String("{0}!", String("Hiding"))));
+		Wait(0.750, Ignore Condition);
+		Abort If Condition Is False;
+		Teleport(Event Player, First Of(Global.arenaMap2) + Vector(Random Integer(-8, 8), 0, Random Integer(-19, 19)));
+	}
+}
+
+rule("No entry floor (OOB) -Created by Beemoo")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		(Y Component Of(Position Of(Event Player)) < 26.500 && Y Component Of(Position Of(Event Player)) > 25) == True;
+		Current Map == Map(Havana);
+	}
+
+	actions
+	{
+		Set Status(Event Player, Null, Burning, 0.500);
+		Damage(Event Player, Event Player, 25);
+		Apply Impulse(Event Player, Direction Towards(Position Of(Event Player), First Of(Global.arenaMap2) + Vector(0, 10, 0)), 12,
+			To World, Cancel Contrary Motion);
+		Wait(0.500, Ignore Condition);
+		Loop If Condition Is True;
+	}
+}
+
+rule("No entry OOB (spawn tele) -Created by Beemoo")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		Has Spawned(Event Player) == True;
+		Current Map == Map(Havana);
+		(X Component Of(Position Of(Event Player)) < 171 || X Component Of(Position Of(Event Player)) > 229 || Z Component Of(Position Of(
+			Event Player)) < -66 || Z Component Of(Position Of(Event Player)) > -15) == True;
+	}
+
+	actions
+	{
+		Teleport(Event Player, Global.arenaMap2 + Vector(Random Integer(-8, 8), 0, Random Integer(-19, 19)));
+	}
+}
+
+rule("Game Mode Description HUD - 1000 DMG = NEXT HERO aka ∞ Infinite Damage Gun Game v11.1.0")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+
+	conditions
+	{
+		Is Game In Progress == True;
+	}
+
+	actions
+	{
+		Create HUD Text(All Players(All Teams), Null, Null, Custom String(" "), Left, -1, Color(White), Color(White), Color(White),
+			Visible To and String, Default Visibility);
+		Create HUD Text(All Players(All Teams), Null, Null, Custom String(" "), Left, -1, Color(White), Color(White), Color(White),
+			Visible To and String, Default Visibility);
+		Create HUD Text(All Players(All Teams), Null, Null, Custom String(" "), Left, -1, Color(White), Color(White), Color(White),
+			Visible To and String, Default Visibility);
+		Create HUD Text(All Players(All Teams), Null, Null, Custom String(" "), Left, -1, Color(White), Color(White), Color(White),
+			Visible To and String, Default Visibility);
+		Create HUD Text(All Players(All Teams), Null, Null, Custom String("1000 DMG = NEXT HERO aka ∞ Infinite Damage Gun Game v11.1.0"),
+			Left, 0, Color(White), Color(White), Color(White), Visible To and String, Default Visibility);
+		Create HUD Text(All Players(All Teams), Null, Null, Custom String("Change {0} every {1}", String("Hero"), String("{0} {1}", 1000,
+			String("Damage"))), Left, 1, Color(White), Color(White), Color(White), Visible To and String, Default Visibility);
+		Create HUD Text(All Players(All Teams), Null, Null, Custom String("8 random DPS + 1 Tank (5th) + 1 Support (10th) in loop"), Left,
+			2, Color(White), Color(White), Color(White), Visible To and String, Default Visibility);
+		Create HUD Text(All Players(All Teams), Null, Null, Custom String(" "), Left, 2.500, Color(White), Color(White), Color(White),
+			Visible To and String, Default Visibility);
+		Create HUD Text(All Players(All Teams), Null, Null, Custom String("Created by Jokaes#2263"), Left, 3, Color(White), Color(White),
+			Color(White), Visible To and String, Default Visibility);
+		Create HUD Text(All Players(All Teams), Null, Null, Custom String("Updated code & more in jokaes.github.io"), Left, 4, Color(
+			White), Color(White), Color(White), Visible To and String, Default Visibility);
+		Start Rule(gameModeDescriptionMessages, Do Nothing);
+	}
+}
+
+rule("Game Mode Description for players who join - 1000 DMG = NEXT HERO aka ∞ Infinite Damage Gun Game v11.1.0")
+{
+	event
+	{
+		Player Joined Match;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		Is Game In Progress == True;
+	}
+
+	actions
+	{
+		Start Rule(gameModeDescriptionMessages, Do Nothing);
+	}
+}
+
+rule("Game Mode Description messages - 1000 DMG = NEXT HERO aka ∞ Infinite Damage Gun Game v11.1.0")
+{
+	event
+	{
+		Subroutine;
+		gameModeDescriptionMessages;
+	}
+
+	actions
+	{
+		Wait(3.500, Ignore Condition);
+		Small Message(Event Player, Custom String("1000 DMG = NEXT HERO aka ∞ Infinite Damage Gun Game v11.1.0"));
+		Wait(3.500, Ignore Condition);
+		Small Message(Event Player, Custom String("Change {0} every {1}", String("Hero"), String("{0} {1}", 1000, String("Damage"))));
+		Wait(3.500, Ignore Condition);
+		Small Message(Event Player, Custom String("8 random DPS + 1 Tank (5th) + 1 Support (10th) in loop"));
+		Wait(3.500, Ignore Condition);
+		Small Message(Event Player, Custom String("Created by Jokaes#2263"));
+	}
+}
+
+disabled rule("Score Debug (TEST)")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		Is Button Held(Event Player, Button(Interact)) == True;
+	}
+
+	actions
+	{
+		Event Player.damageDone += 100;
+		Set Player Score(Event Player, Event Player.damageDone);
+		Event Player.nextObjective = (Round To Integer(Event Player.damageDone / 1000, Down) + 1) * 1000;
+		Start Forcing Player To Be Hero(Event Player, Event Player.heroList[Event Player.nextObjective / 1000 - 1]);
+		Wait(0.250, Ignore Condition);
+	}
+}
+
+disabled rule("Dummy Summon (TEST)")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		Is Communicating(Event Player, Hello) == True;
+	}
+
+	actions
+	{
+		Create Dummy Bot(Event Player.heroList[0], All Teams, -1, Position Of(Event Player), Vector(0, 0, 0));
+		disabled Create Dummy Bot(Event Player.heroList[0], All Teams, -1, Position Of(Event Player), Vector(0, 0, 0));
+		disabled Create Dummy Bot(Event Player.heroList[0], All Teams, -1, Position Of(Event Player), Vector(0, 0, 0));
+		disabled Create Dummy Bot(Event Player.heroList[0], All Teams, -1, Position Of(Event Player), Vector(0, 0, 0));
+		disabled Create Dummy Bot(Event Player.heroList[0], All Teams, -1, Position Of(Event Player), Vector(0, 0, 0));
+		disabled Create Dummy Bot(Event Player.heroList[0], All Teams, -1, Position Of(Event Player), Vector(0, 0, 0));
+	}
+}
+
+disabled rule("Dummy Aim Bot (TEST)")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		Is Dummy Bot(Event Player) == True;
+	}
+
+	actions
+	{
+		Start Facing(Event Player, Direction Towards(Event Player, Closest Player To(Event Player, Opposite Team Of(Team Of(
+			Event Player)))), 10000, To World, Direction and Turn Rate);
+		Start Holding Button(Event Player, Button(Primary Fire));
+		Modify Player Variable(Event Player, heroList, Remove From Array By Value, Hero(Hanzo));
+		Modify Player Variable(Event Player, heroList, Remove From Array By Value, Hero(Ashe));
+	}
+}
+
+disabled rule("Dummy Ult (TEST)")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		Is Dummy Bot(Event Player) == True;
+		Ultimate Charge Percent(Event Player) == 100;
+	}
+
+	actions
+	{
+		Press Button(Event Player, Button(Ultimate));
+	}
+}
+
+disabled rule("Dummy Walking (TEST)")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		Is Dummy Bot(Event Player) == True;
+	}
+
+	actions
+	{
+		Start Throttle In Direction(Event Player, Direction Towards(Event Player, Sorted Array(Filtered Array(All Players(All Teams),
+			Is Alive(Current Array Element)), Distance Between(Event Player, Current Array Element))[1]), 1, To World,
+			Replace existing throttle, Direction and Magnitude);
+	}
+}
+
+disabled rule("Lobby with Dummies (TEST)")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		Is In Setup == True;
+	}
+
+	actions
+	{
+		Create Dummy Bot(Event Player.heroList[0], All Teams, -1, Vector(0, 0, 0), Vector(0, 0, 0));
+		Loop If(Count Of(All Players(All Teams)) < 12);
+	}
+}
+
+rule("Created by Jokaes#2263")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+}

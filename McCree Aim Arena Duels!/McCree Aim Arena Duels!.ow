@@ -1,0 +1,727 @@
+settings
+{
+	main
+	{
+		Description: "McCree Aim Arena Duels! v2.0.0 A series of 1v1 McCree Duels in the Aim Arena. You can't walk. You can roll. You can only shoot primary. You respawn after kill/die. Join my discord.gg/ZdukXgB Code updated & more: https://workshop.codes/users/Jokaes"
+		Mode Name: "McCree Aim Arena Duels!"
+	}
+
+	lobby
+	{
+		Allow Players Who Are In Queue: Yes
+		Map Rotation: After A Game
+		Match Voice Chat: Enabled
+		Max FFA Players: 2
+		Max Spectators: 12
+		Return To Lobby: Never
+		Use Experimental Update If Available: Yes
+	}
+
+	modes
+	{
+		Deathmatch
+		{
+			enabled maps
+			{
+				Havana 0
+				Workshop Island Night 0
+			}
+		}
+
+		General
+		{
+			Respawn As Random Hero: Enabled
+			Score To Win: 50
+			Self Initiated Respawn: Off
+		}
+	}
+
+	heroes
+	{
+		General
+		{
+			Cassidy
+			{
+				Flashbang: Disabled
+				Quick Melee: Disabled
+				Secondary Fire: Disabled
+				Ultimate Ability Deadeye: Disabled
+			}
+
+			enabled heroes
+			{
+				Cassidy
+			}
+		}
+	}
+}
+
+variables
+{
+	global:
+		1: B
+		2: infiniteVersion
+		3: aPlayerIsDead
+		5: codeString
+		7: H
+		8: I
+		12: M
+		14: O
+		19: timerCounter
+		23: X
+
+	player:
+		0: A
+		7: H
+		8: I
+		10: K
+		17: R
+		20: U
+		23: X
+}
+
+rule("\"Waiting for players\" message")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+
+	actions
+	{
+		Skip If(!Is Waiting For Players, 3);
+		Big Message(All Players(All Teams), Custom String("Waiting for players"));
+		Wait(5, Ignore Condition);
+		Loop;
+	}
+}
+
+rule("MCCREE AIM ARENA DUELS!")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+
+	actions
+	{
+		Global.codeString = Custom String("147WC");
+		Create HUD Text(All Players(All Teams), Null, Null, Custom String(" \n\n\n\n\n\n\nMCCREE AIM ARENA DUELS! v2.0.0"), Left, -1000,
+			Null, Null, Color(Yellow), Visible To and String, Default Visibility);
+		Create HUD Text(All Players(All Teams), Null, Null, Custom String(
+			"You cannot walk.\nYou can roll.\nYou can only shoot primary.\nYou respawn after kill/die."), Left, -998, Null, Null, Color(
+			White), Visible To and String, Default Visibility);
+		Create HUD Text(All Players(All Teams), Null, Null, Custom String("Created by Jokaes#2263\nJoin my discord.gg/4N4BAE6"), Left,
+			-997, Null, Null, Color(White), Visible To and String, Default Visibility);
+		Create HUD Text(All Players(All Teams), Custom String("CODE: {0}", Global.codeString), Null, Null, Top, 2, Color(White), Null,
+			Null, Visible To and String, Default Visibility);
+	}
+}
+
+rule("Reset score when someone left")
+{
+	event
+	{
+		Player Left Match;
+		All;
+		All;
+	}
+
+	actions
+	{
+		Set Player Score(All Players(All Teams), 0);
+		Heal(All Players(All Teams), Null, 200);
+	}
+}
+
+rule("Reset time when someone join")
+{
+	event
+	{
+		Player Joined Match;
+		All;
+		All;
+	}
+
+	actions
+	{
+		Global.timerCounter = 0.001;
+	}
+}
+
+rule("McCree")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	actions
+	{
+		Start Forcing Player To Be Hero(Event Player, Hero(Cassidy));
+	}
+}
+
+rule("McCree 2")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		Is In Setup == True;
+	}
+
+	actions
+	{
+		Start Forcing Player To Be Hero(Event Player, Hero(Cassidy));
+		Event Player.K = 0;
+		Event Player.X[0] = 0;
+		Event Player.X[1] = 0;
+	}
+}
+
+rule("Time counter - Initialize new time")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+
+	conditions
+	{
+		Is Game In Progress == True;
+	}
+
+	actions
+	{
+		Pause Match Time;
+		Global.timerCounter = 0.001;
+		Disable Built-In Game Mode Announcer;
+		Disable Built-In Game Mode Music;
+	}
+}
+
+rule("Time counter - Add second")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+
+	conditions
+	{
+		Is Game In Progress == True;
+	}
+
+	actions
+	{
+		Set Match Time(Global.timerCounter);
+		Global.timerCounter += 1;
+		Wait(1, Ignore Condition);
+		Loop;
+	}
+}
+
+rule("Time counter - Reenable announcer and music")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+
+	conditions
+	{
+		Is Game In Progress == True;
+		Global.timerCounter >= 61;
+		Global.infiniteVersion == False;
+	}
+
+	actions
+	{
+		Enable Built-In Game Mode Announcer;
+		Enable Built-In Game Mode Music;
+	}
+}
+
+rule("Inmunite and no shooting in the air (i)(r)")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		Is In Air(Event Player) == True;
+	}
+
+	actions
+	{
+		Disallow Button(Event Player, Button(Primary Fire));
+		Set Status(Event Player, Null, Invincible, 9999);
+		Create Effect(All Players(All Teams), Good Aura, Color(Yellow), Event Player, 1, Visible To Position and Radius);
+		Event Player.I = Last Created Entity;
+		Create HUD Text(Event Player, String("Resurrecting"), Null, Null, Top, -1, Color(Yellow), Null, Null, Visible To and String,
+			Default Visibility);
+		Event Player.R = Last Text ID;
+	}
+}
+
+rule("Clear status if is on ground (i)(r)")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		Is On Ground(Event Player) == True;
+	}
+
+	actions
+	{
+		Allow Button(Event Player, Button(Primary Fire));
+		Clear Status(Event Player, Invincible);
+		Destroy Effect(Event Player.I);
+		Destroy HUD Text(Event Player.R);
+	}
+}
+
+rule("Kill = Respawn HAVANA (a[])")
+{
+	event
+	{
+		Player Dealt Final Blow;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		Current Map == Map(Havana);
+	}
+
+	actions
+	{
+		Event Player.A[0] = Position Of(Event Player);
+		Event Player.A[1] = Facing Direction Of(Event Player);
+		Event Player.A[2] = 1;
+		Respawn(All Players(All Teams));
+		Wait(0.016, Ignore Condition);
+		Teleport(Event Player, First Of(Event Player.A));
+		Set Facing(Event Player, Event Player.A[1], To World);
+		Event Player.A[2] = 2;
+	}
+}
+
+rule("Kill = Respawn (a[]) OTHER MAPS")
+{
+	event
+	{
+		Player Dealt Final Blow;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		Current Map != Map(Havana);
+	}
+
+	actions
+	{
+		Global.aPlayerIsDead = True;
+		Event Player.A[0] = Position Of(Event Player);
+		Event Player.A[1] = Facing Direction Of(Event Player);
+		Event Player.A[2] = 1;
+		Respawn(All Players(All Teams));
+		"getAllPlayers().resurrect()"
+		Wait(0.128, Ignore Condition);
+		Teleport(Victim, Vector(Random Real(-18, 18), 7.500, Random Real(-18, 18)));
+		Teleport(Attacker, Vector(Random Real(-18, 18), 7.500, Random Real(-18, 18)));
+		"eventPlayer.setFacing(eventPlayer.A[1], Relativity.TO_WORLD)"
+		Event Player.A[2] = 2;
+		Global.aPlayerIsDead = False;
+	}
+}
+
+rule("Self kill")
+{
+	event
+	{
+		Player Dealt Final Blow;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		Attacker == Victim;
+	}
+
+	actions
+	{
+		Event Player.A[2] = 2;
+		Resurrect(All Players(All Teams));
+		Respawn(All Players(All Teams));
+	}
+}
+
+rule("Respawn time = 0")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	actions
+	{
+		Set Respawn Max Time(Event Player, 0);
+	}
+}
+
+rule("Disable movement and buttons")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	actions
+	{
+		Start Forcing Throttle(Event Player, 0, 0, 0, 0, 0, 0);
+		Disallow Button(All Players(All Teams), Button(Secondary Fire));
+		Disallow Button(All Players(All Teams), Button(Ability 2));
+		Disallow Button(All Players(All Teams), Button(Ultimate));
+		Disallow Button(All Players(All Teams), Button(Interact));
+		Disallow Button(All Players(All Teams), Button(Jump));
+		Disallow Button(All Players(All Teams), Button(Crouch));
+	}
+}
+
+rule("HUD (u)(h)")
+{
+	event
+	{
+		Player Dealt Final Blow;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		Is Game In Progress == True;
+	}
+
+	actions
+	{
+		Destroy HUD Text(Event Player.U);
+		Destroy HUD Text(Event Player.H);
+		Wait(0.125, Ignore Condition);
+		"hudText(eventPlayer, null, l\"{0} / {1}\".format(l\"Kills\", l\"Min\"), l\"{0}: {1}\".format(eventPlayer, eventPlayer.K), HudPosition.LEFT, eventPlayer.K * -1, Color.WHITE, Color.BLUE, Color.WHITE, HudReeval.VISIBILITY_AND_STRING, SpecVisibility.DEFAULT)"
+		Create HUD Text(Event Player, Null, Custom String("{0} {1}", String("Best"), String("Killstreak")), String("{0}: {1}",
+			Event Player, Event Player.X[1]), Right, Event Player.X[1] * -1, Color(White), Color(Blue), Color(White),
+			Visible To and String, Default Visibility);
+		Event Player.H = Last Text ID;
+		"hudText([player for player in getAllPlayers() if player != eventPlayer], null, l\"{0} / {1}\".format(l\"Kills\", l\"Min\"), l\"{0}: {1}\".format(eventPlayer, eventPlayer.K), HudPosition.LEFT, eventPlayer.K * -1, Color.WHITE, Color.RED, Color.WHITE, HudReeval.VISIB"
+		Create HUD Text(Remove From Array(All Players(All Teams), Event Player), Null, Custom String("{0} {1}", String("Best"), String(
+			"Killstreak")), String("{0}: {1}", Event Player, Event Player.X[1]), Right, Event Player.X[1] * -1, Color(White), Color(Red),
+			Color(White), Visible To and String, Default Visibility);
+		Event Player.U = Last Text ID;
+	}
+}
+
+rule("Kill counter (k)")
+{
+	event
+	{
+		Player Dealt Final Blow;
+		All;
+		All;
+	}
+
+	actions
+	{
+		Event Player.K += 1;
+	}
+}
+
+rule("Killstreak HUD (x)")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	actions
+	{
+		"hudSubtext(eventPlayer, l\"{0} {1} {2}\".format(l\"You\", l\"Best\", l\"{0}: {1}\".format(l\"Killstreak\", eventPlayer.X[1])), HudPosition.TOP, 2, Color.WHITE, HudReeval.VISIBILITY_AND_STRING, SpecVisibility.DEFAULT)"
+		Create HUD Text(Event Player, Null, Null, String("{0}: {1}", String("Killstreak"), Event Player.X), Top, 3, Null, Null, Color(
+			White), Visible To and String, Default Visibility);
+	}
+}
+
+rule("Killstreak++ (x)")
+{
+	event
+	{
+		Player Dealt Final Blow;
+		All;
+		All;
+	}
+
+	actions
+	{
+		Event Player.X[0] += 1;
+	}
+}
+
+rule("Break Killstreak")
+{
+	event
+	{
+		Player Died;
+		All;
+		All;
+	}
+
+	actions
+	{
+		Event Player.X[0] = 0;
+	}
+}
+
+rule("Best Player Killstreak")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		First Of(Event Player.X) > Event Player.X[1];
+	}
+
+	actions
+	{
+		Event Player.X[1] = First Of(Event Player.X);
+	}
+}
+
+rule("Best Global Killstreak")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		First Of(Event Player.X) > Global.X;
+	}
+
+	actions
+	{
+		Global.X[0] = First Of(Event Player.X);
+		Global.X[1] = Event Player;
+	}
+}
+
+rule("BOOM!")
+{
+	event
+	{
+		Player Died;
+		All;
+		All;
+	}
+
+	actions
+	{
+		Play Effect(All Players(All Teams), Bad Explosion, Color(Red), Position Of(Event Player), 4);
+	}
+}
+
+rule("global init (B)(M)(O)(H)(I) -Created by Beemoo")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+
+	conditions
+	{
+		Current Map == Map(Havana);
+	}
+
+	actions
+	{
+		Global.B = False;
+		Global.M = Vector(215, 35, -40);
+		Global.O = Empty Array;
+		Modify Global Variable(O, Append To Array, Vector(227.500, 27.500, -57));
+		Modify Global Variable(O, Append To Array, Vector(227.500, 27.500, -40.500));
+		Modify Global Variable(O, Append To Array, Vector(227.500, 27.500, -25.500));
+		Modify Global Variable(O, Append To Array, Vector(218, 27.500, -16.500));
+		Modify Global Variable(O, Append To Array, Vector(204.830, 27.500, -16.500));
+		Modify Global Variable(O, Append To Array, Vector(191.170, 27.500, -20.780));
+		Modify Global Variable(O, Append To Array, Vector(181.600, 27.500, -30.100));
+		Modify Global Variable(O, Append To Array, Vector(171.190, 28.210, -42));
+		Modify Global Variable(O, Append To Array, Vector(171.190, 28.210, -55));
+		Modify Global Variable(O, Append To Array, Vector(185, 27.500, -64.600));
+		Modify Global Variable(O, Append To Array, Vector(197.600, 27.500, -64.590));
+		Modify Global Variable(O, Append To Array, Vector(210.200, 27.500, -64.590));
+		Modify Global Variable(O, Append To Array, Vector(222.600, 27.500, -64.590));
+		Global.H = Count Of(Global.O) - 1;
+		Create Effect(All Players(All Teams), Sphere, Color(Red), Vector(184, -71.800, -46), 100, Visible To Position and Radius);
+		Skip If(Global.B == False, 1);
+		Create Effect(All Players(All Teams), Orb, Color(Purple), Global.I, 1, Visible To Position and Radius);
+	}
+}
+
+rule("effect create loop (B)(H) -Created by Beemoo")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+
+	conditions
+	{
+		Global.B == True;
+		Global.H > 0;
+		Current Map == Map(Havana);
+	}
+
+	actions
+	{
+		Wait(0.250, Ignore Condition);
+		Create Effect(All Players(All Teams), Ring, Color(Yellow), Global.O[Global.H], 1.200, Visible To);
+		Global.H -= 1;
+		Loop If Condition Is True;
+	}
+}
+
+rule("no entry pillars (knock, tele) (O) (M) -Created by Beemoo")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		Is True For Any(Global.O, Distance Between(Current Array Element, Event Player) < 1.250) == True;
+		Current Map == Map(Havana);
+	}
+
+	actions
+	{
+		Wait(0.500, Ignore Condition);
+		Abort If Condition Is False;
+		Apply Impulse(Event Player, Direction Towards(Position Of(Event Player), First Of(Global.M) + Vector(0, 10, 0)), 12, To World,
+			Cancel Contrary Motion);
+		Play Effect(All Players(All Teams), Debuff Impact Sound, Color(White), Event Player, 100);
+		Small Message(Event Player, Custom String("{0} {1}", String("No"), String("{0}!", String("Hiding"))));
+		Wait(0.750, Ignore Condition);
+		Abort If Condition Is False;
+		"smallMessage(getAllPlayers(), \"no entry pillars havana teleport\")"
+		Teleport(Event Player, First Of(Global.M) + Vector(Random Integer(-8, 8), 0, Random Integer(-19, 19)));
+	}
+}
+
+rule("no entry OOB (spawn tele) (a) (M) -Created by Beemoo")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		Event Player.A[2] != 1;
+		Has Spawned(Event Player) == True;
+		(X Component Of(Position Of(Event Player)) < 171 || X Component Of(Position Of(Event Player)) > 229 || Z Component Of(Position Of(
+			Event Player)) < -66 || Z Component Of(Position Of(Event Player)) > -15) == True;
+		Current Map == Map(Havana);
+	}
+
+	actions
+	{
+		"smallMessage(getAllPlayers(), \"no entry OOB havana teleport\")"
+		Teleport(Event Player, Global.M + Vector(Random Integer(-8, 8), 0, Random Integer(-19, 19)));
+	}
+}
+
+rule("no entry floor (OOB) -Created by Beemoo")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		Y Component Of(Position Of(Event Player)) < 26.500;
+		Y Component Of(Position Of(Event Player)) > 25;
+		Current Map == Map(Havana);
+	}
+
+	actions
+	{
+		Set Status(Event Player, Null, Burning, 0.500);
+		Kill(Event Player, Empty Array);
+	}
+}
+
+rule("ISLAND")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		Event Player.A[2] != 1;
+		Has Spawned(Event Player) == True;
+		(Current Map == Map(Workshop Island) || Current Map == Map(Workshop Island Night)) == True;
+		Global.aPlayerIsDead == True;
+	}
+
+	actions
+	{
+		Set Ability Cooldown(Event Player, Button(Ability 1), 0);
+	}
+}

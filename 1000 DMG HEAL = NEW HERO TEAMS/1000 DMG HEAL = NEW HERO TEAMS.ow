@@ -1,0 +1,740 @@
+settings
+{
+	main
+	{
+		Description: "1000 DMG/HEAL = NEW HERO TEAMS. Change hero every 1000 damage. No turrets. v12.1.0 Created by Jokaes#2263 Join discord.gg/ZdukXgB Updated code & more: jokaes.github.io"
+		Mode Name: "1000 DMG/HEAL = NEW HERO TEAMS"
+	}
+
+	lobby
+	{
+		Allow Players Who Are In Queue: Yes
+		Map Rotation: After A Game
+		Match Voice Chat: Enabled
+		Max Spectators: 6
+		Return To Lobby: Never
+		Use Experimental Update If Available: Yes
+	}
+
+	modes
+	{
+		Team Deathmatch
+		{
+			enabled maps
+			{
+				Workshop Chamber 0
+			}
+		}
+
+		General
+		{
+			Game Mode Start: Immediately
+			Hero Limit: Off
+			Kill Feed: Disabled
+			Respawn As Random Hero: Enabled
+			Respawn Time Scalar: 0%
+			Score To Win: 200
+		}
+	}
+
+	heroes
+	{
+		General
+		{
+			Ultimate Generation: 200%
+
+			Ashe
+			{
+				Ultimate Ability B.O.B.: Disabled
+			}
+
+			Symmetra
+			{
+				Sentry Turret: Disabled
+			}
+
+			Torbjörn
+			{
+				Deploy Turret: Disabled
+			}
+		}
+	}
+}
+
+variables
+{
+	global:
+		0: timeCounter
+		1: classicHeroList
+		2: teamsHeroList
+		6: damageHealDoneTeam1
+		7: damageHealDoneTeam2
+
+	player:
+		0: damageHealDone
+		1: heroList
+		2: nextObjective
+		3: heroIcon
+		5: damageHealDisplay
+		6: damageHealDisplayPos
+		7: damagehealDisplayScale
+		8: heroesDone
+		9: heroListInfinitoAppend
+}
+
+subroutines
+{
+	0: gameModeDescriptionMessages
+}
+
+rule("Disable bulit-in game mode & start timer variables {Game in progress GLOBAL}")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+
+	conditions
+	{
+		Is Game In Progress == True;
+	}
+
+	actions
+	{
+		Disable Built-In Game Mode Scoring;
+		Disable Built-In Game Mode Completion;
+		Disable Built-In Game Mode Announcer;
+		Disable Built-In Game Mode Music;
+		disabled Disable Inspector Recording;
+		Pause Match Time;
+		Global.timeCounter = 0.001;
+		"Creates a HUD in the top with [svr load: {0} | svr avg: {1} | svr peak: {2}]"
+		Create HUD Text(Filtered Array(Host Player, Custom String("#Jokaes") == String("#{0}", Host Player)), Null, Custom String(
+			"svr load: {0} | svr avg: {1} | svr peak: {2}", Server Load, Server Load Average, Server Load Peak), Null, Top, -100, Color(
+			White), Color(Lime Green), Color(White), Visible To and String, Default Visibility);
+	}
+}
+
+rule("Gamemode description, create objective, NEW HERO HUDs {Game in progress PLAYER}")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		Is Game In Progress == True;
+	}
+
+	actions
+	{
+		Start Rule(gameModeDescriptionMessages, Do Nothing);
+		Wait(4.500, Ignore Condition);
+		Set Objective Description(Event Player, Custom String("{0} {1} -> {2}", Round To Integer(
+			Event Player.nextObjective - Event Player.damageHealDone, Down), String("{0} / {1}", String("Damage"), String("Heal")),
+			Hero Icon String(Event Player.heroList[Event Player.nextObjective / 1000])), Visible To and String);
+		Create HUD Text(Event Player, Null, String("{0}: {1}", String("Next Hero"), String("{0} {1}", Event Player.nextObjective,
+			Event Player.heroList[Event Player.nextObjective / 1000])), Null, Top, 1, Color(White), Color(White), Color(White),
+			Visible To and String, Default Visibility);
+	}
+}
+
+rule("Damage track TEAM DEATHMATCH")
+{
+	event
+	{
+		Player Dealt Damage;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		Victim != Attacker;
+		Current Game Mode == Game Mode(Team Deathmatch);
+	}
+
+	actions
+	{
+		Event Player.damageHealDone += Event Damage;
+		Event Player.nextObjective = (Round To Integer(Event Player.damageHealDone / 1000, Down) + 1) * 1000;
+		Destroy In-World Text(Event Player.damageHealDisplay);
+		Event Player.damageHealDisplayPos = Eye Position(Victim);
+		Event Player.damagehealDisplayScale = 0.700 + Event Damage / 20;
+		"Creates a WHITE damage display if event wasn't critical else creates a RED one"
+		If(!Event Was Critical Hit);
+			Create In-World Text(Event Player, Round To Integer(Event Damage, To Nearest), Event Player.damageHealDisplayPos,
+				Event Player.damagehealDisplayScale, Clip Against Surfaces, Visible To Position and String, Color(White), Default Visibility);
+		Else;
+			Create In-World Text(Event Player, Round To Integer(Event Damage, To Nearest), Event Player.damageHealDisplayPos,
+				Event Player.damagehealDisplayScale, Clip Against Surfaces, Visible To Position and String, Color(Red), Default Visibility);
+		End;
+		Event Player.damageHealDisplay = Last Text ID;
+		If(Team Of(Event Player) == Team 1);
+			Global.damageHealDoneTeam1 += Event Damage;
+		Else;
+			Global.damageHealDoneTeam2 += Event Damage;
+		End;
+	}
+}
+
+rule("Heal track TEAM DEATHMATCH")
+{
+	event
+	{
+		Player Dealt Healing;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		Current Game Mode == Game Mode(Team Deathmatch);
+	}
+
+	actions
+	{
+		Event Player.damageHealDone += Event Healing;
+		Event Player.nextObjective = (Round To Integer(Event Player.damageHealDone / 1000, Down) + 1) * 1000;
+		Destroy In-World Text(Event Player.damageHealDisplay);
+		Event Player.damageHealDisplayPos = Eye Position(Healee);
+		Event Player.damagehealDisplayScale = 0.700 + Event Damage / 20;
+		"Creates a YELLOW heal display"
+		Create In-World Text(Event Player, Round To Integer(Event Healing, To Nearest), Event Player.damageHealDisplayPos,
+			Event Player.damagehealDisplayScale, Clip Against Surfaces, Visible To Position and String, Color(Yellow), Default Visibility);
+		Event Player.damageHealDisplay = Last Text ID;
+		If(Team Of(Event Player) == Team 1);
+			Global.damageHealDoneTeam1 += Event Damage;
+		Else;
+			Global.damageHealDoneTeam2 += Event Damage;
+		End;
+	}
+}
+
+rule("Leaderboard TEAM DEATHMATCH {Each player}")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		Is Game In Progress == True;
+		Current Game Mode == Game Mode(Team Deathmatch);
+	}
+
+	actions
+	{
+		Create HUD Text(All Players(Team Of(Event Player)), Null, Null, Custom String("{0} : {1} : {2}", Hero Icon String(Hero Of(
+			Event Player)), Event Player, Round To Integer(Event Player.damageHealDone, To Nearest)), Right,
+			Event Player.damageHealDone * -0.001, Color(White), Color(White), Color(Blue), Visible To Sort Order and String,
+			Visible Always);
+		Create HUD Text(All Players(Opposite Team Of(Team Of(Event Player))), Null, Null, Custom String("{0} : {1} : {2}",
+			Hero Icon String(Hero Of(Event Player)), Event Player, Round To Integer(Event Player.damageHealDone, To Nearest)), Right,
+			Event Player.damageHealDone * -0.001, Color(White), Color(White), Color(Red), Visible To Sort Order and String,
+			Visible Always);
+	}
+}
+
+rule("Leaderboard TEAM DEATHMATCH {Global}")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+
+	conditions
+	{
+		Is Game In Progress == True;
+		Current Game Mode == Game Mode(Team Deathmatch);
+	}
+
+	actions
+	{
+		Create HUD Text(All Players(All Teams), Null, Null, Custom String("team of {0}: {1}", Last Of(Sorted Array(All Players(Team 1),
+			Current Array Element.damageHealDone)), Round To Integer(Global.damageHealDoneTeam1, To Nearest)), Right,
+			-999 + Global.damageHealDoneTeam2 / 1000, Color(White), Color(White), Color(Purple), Visible To Sort Order and String,
+			Default Visibility);
+		Create HUD Text(All Players(All Teams), Null, Null, Custom String("team of {0}: {1}", Last Of(Sorted Array(All Players(Team 2),
+			Current Array Element.damageHealDone)), Round To Integer(Global.damageHealDoneTeam2, To Nearest)), Right,
+			-999 + Global.damageHealDoneTeam1 / 1000, Color(White), Color(White), Color(Purple), Visible To Sort Order and String,
+			Default Visibility);
+	}
+}
+
+rule("Hero List - Infinite 14 DPS + 7 Tank + 7 Supp {Random order}")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	actions
+	{
+		Event Player.heroList = Empty Array;
+		Modify Player Variable(Event Player, heroList, Append To Array, Randomized Array(All Damage Heroes));
+		Event Player.heroList = Array Slice(Event Player.heroList, 0, 14);
+		Modify Player Variable(Event Player, heroList, Append To Array, Randomized Array(All Tank Heroes));
+		Event Player.heroList = Array Slice(Event Player.heroList, 0, 21);
+		Modify Player Variable(Event Player, heroList, Append To Array, Randomized Array(All Support Heroes));
+		Event Player.heroList = Array Slice(Event Player.heroList, 0, 28);
+		Event Player.heroList = Randomized Array(Event Player.heroList);
+		Global.teamsHeroList = True;
+	}
+}
+
+disabled rule("Hero List - Infinite 8 DPS + 1 Tank (5th) + 1 Supp (10th)")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	actions
+	{
+		Event Player.heroList = All Damage Heroes;
+		Event Player.heroList = Randomized Array(Event Player.heroList);
+		Event Player.heroList = Array Slice(Event Player.heroList, 0, 9);
+		Event Player.heroList[4] = Random Value In Array(All Tank Heroes);
+		Modify Player Variable(Event Player, heroList, Append To Array, Random Value In Array(All Support Heroes));
+		Global.classicHeroList = True;
+	}
+}
+
+rule("Preload Heroes")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	actions
+	{
+		Preload Hero(Event Player, Event Player.heroList);
+	}
+}
+
+rule("INFINITO ∞")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		Has Spawned(Event Player) == True;
+		Event Player.nextObjective % 27000 == 0;
+	}
+
+	actions
+	{
+		If(Global.teamsHeroList == True);
+			Event Player.heroListInfinitoAppend = Empty Array;
+			Modify Player Variable(Event Player, heroListInfinitoAppend, Append To Array, All Damage Heroes);
+			Event Player.heroListInfinitoAppend = Array Slice(Event Player.heroList, 0, 14);
+			Modify Player Variable(Event Player, heroListInfinitoAppend, Append To Array, All Tank Heroes);
+			Event Player.heroListInfinitoAppend = Array Slice(Event Player.heroList, 0, 21);
+			Modify Player Variable(Event Player, heroListInfinitoAppend, Append To Array, All Support Heroes);
+			Event Player.heroListInfinitoAppend = Array Slice(Event Player.heroList, 0, 28);
+			Event Player.heroListInfinitoAppend = Randomized Array(Event Player.heroList);
+			Modify Player Variable(Event Player, heroList, Append To Array, Event Player.heroListInfinitoAppend);
+		End;
+		If(Global.classicHeroList == True);
+			Modify Player Variable(Event Player, heroList, Append To Array, Random Value In Array(All Damage Heroes));
+			Wait(0.250, Ignore Condition);
+			Modify Player Variable(Event Player, heroList, Append To Array, Random Value In Array(All Damage Heroes));
+			Wait(0.250, Ignore Condition);
+			Modify Player Variable(Event Player, heroList, Append To Array, Random Value In Array(All Damage Heroes));
+			Wait(0.250, Ignore Condition);
+			Modify Player Variable(Event Player, heroList, Append To Array, Random Value In Array(All Damage Heroes));
+			Wait(0.250, Ignore Condition);
+			Modify Player Variable(Event Player, heroList, Append To Array, Random Value In Array(All Tank Heroes));
+			Wait(0.250, Ignore Condition);
+			Modify Player Variable(Event Player, heroList, Append To Array, Random Value In Array(All Damage Heroes));
+			Wait(0.250, Ignore Condition);
+			Modify Player Variable(Event Player, heroList, Append To Array, Random Value In Array(All Damage Heroes));
+			Wait(0.250, Ignore Condition);
+			Modify Player Variable(Event Player, heroList, Append To Array, Random Value In Array(All Damage Heroes));
+			Wait(0.250, Ignore Condition);
+			Modify Player Variable(Event Player, heroList, Append To Array, Random Value In Array(All Damage Heroes));
+			Wait(0.250, Ignore Condition);
+			Modify Player Variable(Event Player, heroList, Append To Array, Random Value In Array(All Support Heroes));
+		End;
+	}
+}
+
+rule("In Setup OR In Game in progress -> Starting Hero -> HeroList[0]")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		(Is In Setup || Is Game In Progress) == True;
+	}
+
+	actions
+	{
+		Start Forcing Player To Be Hero(Event Player, First Of(Event Player.heroList));
+		Event Player.nextObjective = 1000;
+	}
+}
+
+rule("Start forcing NEW HERO TEAM DEATHMATCH")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		Hero Of(Event Player) != Event Player.heroList[Event Player.nextObjective / 1000 - 1];
+		Is Alive(Event Player) == True;
+		Event Player.damageHealDone > 0;
+		Current Game Mode == Game Mode(Team Deathmatch);
+	}
+
+	actions
+	{
+		Event Player.nextObjective = (Round To Integer(Event Player.damageHealDone / 1000, Down) + 1) * 1000;
+		Start Forcing Player To Be Hero(Event Player, Event Player.heroList[Event Player.nextObjective / 1000 - 1]);
+		Small Message(Event Player, String("{0}: {1}", String("{0} {1}", String("You"), String("Hero")), Hero Icon String(
+			Event Player.heroList[Event Player.nextObjective / 1000 - 1])));
+		Create In-World Text(All Players(All Teams), Hero Icon String(Event Player.heroList[Event Player.nextObjective / 1000 - 1]),
+			Event Player, 1, Clip Against Surfaces, Visible To Position and String, Color(White), Default Visibility);
+		Event Player.heroIcon = Last Text ID;
+		If(Team Of(Event Player) == Team 1);
+			Modify Team Score(Team 1, 1);
+		Else;
+			Modify Team Score(Team 2, 1);
+		End;
+		Event Player.heroesDone += 1;
+		Wait(1.375, Ignore Condition);
+		Destroy In-World Text(Event Player.heroIcon);
+	}
+}
+
+rule("Time Counter - Add minute")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+
+	conditions
+	{
+		Is Game In Progress == True;
+	}
+
+	actions
+	{
+		Set Match Time(Global.timeCounter);
+		Wait(60, Ignore Condition);
+		Global.timeCounter += 1;
+		Loop;
+	}
+}
+
+rule("Player leaves")
+{
+	event
+	{
+		Player Left Match;
+		All;
+		All;
+	}
+
+	actions
+	{
+		Wait(1, Ignore Condition);
+		Set Team Score(Team 1, Players In Slot(0, Team 1).heroesDone + Players In Slot(1, Team 1).heroesDone + Players In Slot(2, Team 1)
+			.heroesDone + Players In Slot(3, Team 1).heroesDone + Players In Slot(4, Team 1).heroesDone + Players In Slot(5, Team 1)
+			.heroesDone);
+		Set Team Score(Team 2, Players In Slot(0, Team 2).heroesDone + Players In Slot(1, Team 2).heroesDone + Players In Slot(2, Team 2)
+			.heroesDone + Players In Slot(3, Team 2).heroesDone + Players In Slot(4, Team 2).heroesDone + Players In Slot(5, Team 2)
+			.heroesDone);
+		Global.damageHealDoneTeam1 = Players In Slot(0, Team 1).damageHealDone + Players In Slot(1, Team 1)
+			.damageHealDone + Players In Slot(2, Team 1).damageHealDone + Players In Slot(3, Team 1).damageHealDone + Players In Slot(4,
+			Team 1).damageHealDone + Players In Slot(5, Team 1).damageHealDone;
+		Global.damageHealDoneTeam2 = Players In Slot(0, Team 2).damageHealDone + Players In Slot(1, Team 2)
+			.damageHealDone + Players In Slot(2, Team 2).damageHealDone + Players In Slot(3, Team 2).damageHealDone + Players In Slot(4,
+			Team 2).damageHealDone + Players In Slot(5, Team 2).damageHealDone;
+	}
+}
+
+rule("Game Mode Description HUD - 1000 DMG/HEAL = NEW HERO TEAMS v12.1.0")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+
+	conditions
+	{
+		Is Game In Progress == True;
+	}
+
+	actions
+	{
+		Create HUD Text(All Players(All Teams), Null, Null, Custom String(" "), Left, -1, Color(White), Color(White), Color(White),
+			Visible To and String, Default Visibility);
+		Create HUD Text(All Players(All Teams), Null, Null, Custom String(" "), Left, -1, Color(White), Color(White), Color(White),
+			Visible To and String, Default Visibility);
+		Create HUD Text(All Players(All Teams), Null, Null, Custom String(" "), Left, -1, Color(White), Color(White), Color(White),
+			Visible To and String, Default Visibility);
+		Create HUD Text(All Players(All Teams), Null, Null, Custom String(" "), Left, -1, Color(White), Color(White), Color(White),
+			Visible To and String, Default Visibility);
+		Create HUD Text(All Players(All Teams), Null, Null, Custom String("1000 DMG/HEAL = NEW HERO TEAMS v12.1.0"), Left, 0, Color(White),
+			Color(White), Color(White), Visible To and String, Default Visibility);
+		Create HUD Text(All Players(All Teams), Null, Null, Custom String("Change {0} every {1}", String("Hero"), String("{0} {1}", 1000,
+			String("Damage"))), Left, 1, Color(White), Color(White), Color(White), Visible To and String, Default Visibility);
+		If(Global.teamsHeroList == True);
+			Create HUD Text(All Players(All Teams), Null, Null, Custom String("14 random DPS + 7 Tank + 7 Supp {Random order}"), Left, 2,
+				Color(White), Color(White), Color(White), Visible To and String, Default Visibility);
+		End;
+		If(Global.classicHeroList == True);
+			Create HUD Text(All Players(All Teams), Null, Null, Custom String("8 random DPS + 1 Tank (5th) + 1 Support (10th) in loop"), Left,
+				2, Color(White), Color(White), Color(White), Visible To and String, Default Visibility);
+		End;
+		Create HUD Text(All Players(All Teams), Null, Null, Custom String(" "), Left, 2.500, Color(White), Color(White), Color(White),
+			Visible To and String, Default Visibility);
+		Create HUD Text(All Players(All Teams), Null, Null, Custom String("Created by Jokaes#2263"), Left, 3, Color(White), Color(White),
+			Color(White), Visible To and String, Default Visibility);
+		Create HUD Text(All Players(All Teams), Null, Null, Custom String("Updated code & more in jokaes.github.io"), Left, 4, Color(
+			White), Color(White), Color(White), Visible To and String, Default Visibility);
+		Start Rule(gameModeDescriptionMessages, Do Nothing);
+	}
+}
+
+rule("Game Mode Description for players who join - 1000 DMG/HEAL = NEW HERO TEAMS v12.1.0")
+{
+	event
+	{
+		Player Joined Match;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		Is Game In Progress == True;
+	}
+
+	actions
+	{
+		Start Rule(gameModeDescriptionMessages, Do Nothing);
+	}
+}
+
+rule("Game Mode Description messages - 1000 DMG/HEAL = NEW HERO TEAMS v12.1.0")
+{
+	event
+	{
+		Subroutine;
+		gameModeDescriptionMessages;
+	}
+
+	actions
+	{
+		Wait(3.500, Ignore Condition);
+		Small Message(Event Player, Custom String("1000 DMG/HEAL = NEW HERO TEAMS v12.1.0"));
+		Wait(3.500, Ignore Condition);
+		Small Message(Event Player, Custom String("Change {0} every {1}", String("Hero"), String("{0} {1}", 1000, String("Damage"))));
+		Wait(3.500, Ignore Condition);
+		If(Global.teamsHeroList == True);
+			Small Message(Event Player, Custom String("14 random DPS + 7 Tank + 7 Supp {Random order}"));
+		End;
+		If(Global.classicHeroList == True);
+			Small Message(Event Player, Custom String("8 random DPS + 1 Tank (5th) + 1 Support (10th) in loop"));
+		End;
+		Wait(3.500, Ignore Condition);
+		Small Message(Event Player, Custom String("Created by Jokaes#2263"));
+	}
+}
+
+rule("Score Debug (TEST)")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		Is Button Held(Event Player, Button(Interact)) == True;
+	}
+
+	actions
+	{
+		Event Player.damageHealDone += 100;
+		Set Player Score(Event Player, Event Player.damageHealDone);
+		Event Player.nextObjective = (Round To Integer(Event Player.damageHealDone / 1000, Down) + 1) * 1000;
+		Start Forcing Player To Be Hero(Event Player, Event Player.heroList[Event Player.nextObjective / 1000 - 1]);
+		Wait(0.250, Ignore Condition);
+	}
+}
+
+disabled rule("Dummy Summon (TEST)")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		Is Communicating(Event Player, Hello) == True;
+	}
+
+	actions
+	{
+		Create Dummy Bot(Event Player.heroList[0], All Teams, -1, Position Of(Event Player), Vector(0, 0, 0));
+		disabled Create Dummy Bot(Event Player.heroList[0], All Teams, -1, Position Of(Event Player), Vector(0, 0, 0));
+		disabled Create Dummy Bot(Event Player.heroList[0], All Teams, -1, Position Of(Event Player), Vector(0, 0, 0));
+		disabled Create Dummy Bot(Event Player.heroList[0], All Teams, -1, Position Of(Event Player), Vector(0, 0, 0));
+		disabled Create Dummy Bot(Event Player.heroList[0], All Teams, -1, Position Of(Event Player), Vector(0, 0, 0));
+		disabled Create Dummy Bot(Event Player.heroList[0], All Teams, -1, Position Of(Event Player), Vector(0, 0, 0));
+	}
+}
+
+disabled rule("Dummy Aim Bot (TEST)")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		Is Dummy Bot(Event Player) == True;
+	}
+
+	actions
+	{
+		Start Facing(Event Player, Direction Towards(Event Player, Closest Player To(Event Player, Opposite Team Of(Team Of(
+			Event Player)))), 10000, To World, Direction and Turn Rate);
+		Start Holding Button(Event Player, Button(Primary Fire));
+		Modify Player Variable(Event Player, heroList, Remove From Array By Value, Hero(Hanzo));
+		Modify Player Variable(Event Player, heroList, Remove From Array By Value, Hero(Ashe));
+	}
+}
+
+disabled rule("Dummy Ult (TEST)")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		Is Dummy Bot(Event Player) == True;
+		Ultimate Charge Percent(Event Player) == 100;
+	}
+
+	actions
+	{
+		Press Button(Event Player, Button(Ultimate));
+	}
+}
+
+disabled rule("Dummy Walking (TEST)")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		Is Dummy Bot(Event Player) == True;
+	}
+
+	actions
+	{
+		Start Throttle In Direction(Event Player, Direction Towards(Event Player, Sorted Array(Filtered Array(All Players(All Teams),
+			Is Alive(Current Array Element)), Distance Between(Event Player, Current Array Element))[1]), 1, To World,
+			Replace existing throttle, Direction and Magnitude);
+	}
+}
+
+disabled rule("Lobby with Dummies (TEST)")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+
+	conditions
+	{
+		Is In Setup == True;
+	}
+
+	actions
+	{
+		Create Dummy Bot(Hero(Brigitte), Team 1, -1, Vector(0, 0, 0), Vector(0, 0, 0));
+		Create Dummy Bot(Hero(Brigitte), Team 2, -1, Vector(0, 0, 0), Vector(0, 0, 0));
+		Loop If(Number Of Players(Team 1) < 6 || Number Of Players(Team 2) < 6);
+	}
+}
+
+disabled rule("Destroy the bots (TEST)")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		Is Button Held(Event Player, Button(Ultimate)) == True;
+		Is Button Held(Event Player, Button(Crouch)) == True;
+	}
+
+	actions
+	{
+		Destroy All Dummy Bots;
+	}
+}
+
+rule("Created by Jokaes#2263")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+}

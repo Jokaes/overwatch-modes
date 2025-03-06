@@ -1,0 +1,122 @@
+settings
+{
+	main
+	{
+		Description: "Junkenstein's Revenge - Random hero after ultimate | v1.0.0 | By Jokaes#2263"
+	}
+
+	lobby
+	{
+		Max Spectators: 12
+	}
+
+	modes
+	{
+		Junkenstein's Revenge
+		{
+			Difficulty: Hard
+			Endless Mode: Enabled
+		}
+
+		General
+		{
+			Allow Hero Switching: Disabled
+			Game Mode Start: Immediately
+			Hero Limit: Off
+			Respawn As Random Hero: Enabled
+		}
+	}
+
+	heroes
+	{
+		General
+		{
+			disabled heroes
+			{
+				Hazard
+				Illari
+				Junker Queen
+				Juno
+				Kiriko
+				Lifeweaver
+				Mauga
+				Ramattra
+				Sojourn
+				Venture
+			}
+		}
+	}
+}
+
+rule("Hero List")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+
+	actions
+	{
+		Global.L = All Heroes;
+		Preload Hero(All Players(Team 1), Global.L);
+	}
+}
+
+rule("Starter Hero")
+{
+	event
+	{
+		Ongoing - Each Player;
+		Team 1;
+		All;
+	}
+
+	actions
+	{
+		Start Forcing Player To Be Hero(Event Player, Random Value In Array(Global.L));
+	}
+}
+
+rule("New hero after ult")
+{
+	event
+	{
+		Ongoing - Each Player;
+		Team 1;
+		All;
+	}
+
+	conditions
+	{
+		Is Using Ultimate(Event Player) == True;
+		Is Alive(Event Player) == True;
+	}
+
+	actions
+	{
+		Wait(0.125, Ignore Condition);
+		Loop If Condition Is True;
+		Event Player.H = Random Value In Array(Global.L);
+		Modify Global Variable(L, Remove From Array By Value, Event Player.H);
+		Start Forcing Player To Be Hero(Event Player, Random Value In Array(Global.L));
+		Modify Global Variable(L, Append To Array, Event Player.H);
+	}
+}
+
+rule("Skip assembling")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+
+	conditions
+	{
+		Is Assembling Heroes == True;
+	}
+
+	actions
+	{
+		Set Match Time(0);
+	}
+}

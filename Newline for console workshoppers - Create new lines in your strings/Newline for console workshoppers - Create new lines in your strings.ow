@@ -1,0 +1,57 @@
+settings
+{
+	lobby
+	{
+		Max Team 1 Players: 6
+		Max Team 2 Players: 6
+	}
+
+	modes
+	{
+		Assault
+
+		Control
+
+		Escort
+
+		Hybrid
+
+		General
+		{
+			Limit Roles: 2 Of Each Role Per Team
+		}
+	}
+}
+
+variables
+{
+	global:
+		0: newLine
+}
+
+rule("New line")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+
+	actions
+	{
+		Global.newLine = Custom String("\n");
+	}
+}
+
+rule("Example HUD")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+
+	actions
+	{
+		Create HUD Text(All Players(All Teams), Custom String("This is a {0}new line.", Global.newLine), Null, Null, Left, 0, Color(White),
+			Null, Null, Visible To and String, Default Visibility);
+	}
+}
