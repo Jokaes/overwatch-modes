@@ -166,6 +166,7 @@ body {
     background: #000;
     box-shadow: 0 0 2rem 2rem #000;
 }
+
 *::selection {
     color: black;
     background: #b3e6c8;
