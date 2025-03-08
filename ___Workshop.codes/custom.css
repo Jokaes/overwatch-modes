@@ -1,0 +1,172 @@
+*::selection { color: black; background: #b3e6c8; }
+a { color: #3fbf74; }
+.copy { color: #3fbf74; }
+table img { width: 50px; height: 50px; padding-right: 5px; vertical-align:middle; }
+.body-bg picture img { content:url(https://i.imgur.com/Ww4mIUT.png); }
+
+.profile-image img:hover {
+    cursor: default;
+    transform: rotate(360deg);
+    transition: all 0.3s ease-in-out 0s;
+}
+
+.action-header__actions {
+    font-size: 150%;
+}
+
+/*Bastion's world of tanks thumbnail on CODES*/
+.item[data-code="33NKS"]:hover .item__thumbnail[href="/33NKS"] img{
+    height: 68px;
+    width: 120px;
+    padding-bottom: 68px;
+    padding-right: 120px;
+    background:transparent url(https://i.imgur.com/QR2VRLn.gif) top left no-repeat;
+}
+
+/*Bastion's world of tanks on HIGHLIGHT*/
+.card[data-code="33NKS"]:hover img{
+    height: 142.5px;
+    width: 250px;
+    padding-bottom: 142.5px;
+    padding-right: 250px;
+    background:transparent url(https://i.imgur.com/DM2z1yD.gif) top left no-repeat;
+}
+
+/*Sniper Roulette FFA thumbnail on CODES*/
+.item[data-code="4ASVS"]:hover .item__thumbnail[href="/4ASVS"] img{
+    height: 68px;
+    width: 120px;
+    padding-bottom: 68px;
+    padding-right: 120px;
+    background:transparent url(https://i.imgur.com/hlVLltL.gif) top left no-repeat;
+}
+
+/*Sniper Roulette FFA thumbnail on HIGHLIGHT*/
+.card[data-code="4ASVS"]:hover img{
+    height: 142.5px;
+    width: 250px;
+    padding-bottom: 142.5px;
+    padding-right: 250px;
+    background:transparent url(https://i.imgur.com/sJs2iFz.gif) top left no-repeat;
+}
+
+/*Gun Game - Keep & Skip ON CODES*/
+.item[data-code="NGFPW"]:hover .item__thumbnail[href="/NGFPW"] img{
+    height: 68px;
+    width: 120px;
+    padding-bottom: 68px;
+    padding-right: 120px;
+    background:transparent url(https://i.imgur.com/8nuxmsc.gif) top left no-repeat;
+}
+
+/*Gun Game - Keep & Skip on HIGHLIGHT*/
+.card[data-code="NGFPW"]:hover img{
+    height: 142.5px;
+    width: 250px;
+    padding-bottom: 142.5px;
+    padding-right: 250px;
+    background:transparent url(https://i.imgur.com/3GVrGHn.gif) top left no-repeat;
+}
+
+/*Change the background of the highlight*/
+.item__full-page-background {
+    background-color: rgba(0,0,0,0);
+}
+
+.card > .card__title[href="/c/idagdp"]{
+    display: none;
+    background-color: yellow;
+}
+
+.items {
+    display: grid;
+    grid-gap: 15px;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+.high-contrast {
+    --white: #fff;
+    --text-color: #b8bec0;
+    --text-color-light: #abb1b4;
+    --text-color-dark: #90989c;
+    --font-stack: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+}
+.high-contrast {
+    --white: #fff;
+    --text-color: #b8bec0;
+    --text-color-light: #abb1b4;
+    --text-color-dark: #90989c;
+    --font-stack: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+}
+
+*::selection {
+    color: black;
+    background: #b3e6c8;
+}
+
+.item {
+    flex-direction: column;
+    padding: 15px;
+    text-align: left;
+    color: var(--white);
+    text-decoration: none;
+}
+.banner, .item {
+    position: relative;
+    background: #292e31;
+    border-radius: 10px;
+}
+* {
+    box-sizing: border-box;
+}
+
+.high-contrast {
+    --white: #fff;
+    --text-color: #b8bec0;
+    --text-color-light: #abb1b4;
+    --text-color-dark: #90989c;
+    --font-stack: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+}
+.high-contrast {
+    --white: #fff;
+    --text-color: #b8bec0;
+    --text-color-light: #abb1b4;
+    --text-color-dark: #90989c;
+    --font-stack: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+}
+body {
+    position: relative;
+    padding: 20px 20px 0;
+    background: #1f2326 url(/assets/layout/pattern-bg-fddefbf….webp);
+    color: var(--text-color);
+    overflow-x: hidden;
+}
+
+.item::before {
+    left: 2rem;
+    width: calc(100% - 4rem);
+    bottom: .5rem;
+    box-shadow: 0 0 1.25rem 1.25rem #000;
+}
+
+.banner::before, .item::before {
+    content: "";
+    /*display: block;*/
+    position: absolute;
+    left: 4rem;
+    bottom: 0;
+    height: 50%;
+    width: calc(100% - 8rem);
+    border-radius: 10px;
+    z-index: -1;
+    opacity: .45;
+    background: #000;
+    box-shadow: 0 0 2rem 2rem #000;
+}
+*::selection {
+    color: black;
+    background: #b3e6c8;
+}
